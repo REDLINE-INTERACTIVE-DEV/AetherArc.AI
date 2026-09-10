@@ -165,9 +165,9 @@ def call_model(messages, temperature=0.2):
                 raise RuntimeError(f'AI provider request failed ({e.code}).')
             except urllib.error.URLError as e:
                 raise RuntimeError('Aether could not reach the AI provider. Check the Render service connection.') from e
-        if last_error:
-            detail = f' Last provider response: {getattr(last_error, "reason", "access denied")}'
-            raise RuntimeError('Groq denied every model available to this project. Aether tried automatic model discovery and fallback models.' + detail)
+        # If Groq denies the project, continue to the next configured cloud provider.
+        # Pollinations is intentionally the next fallback because Aether already
+        # keeps its server-side key there for image generation.
     if os.getenv('POLLINATIONS_API_KEY'):
         try:
             purl = 'https://gen.pollinations.ai/v1/chat/completions'
