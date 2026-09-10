@@ -1,0 +1,25 @@
+name: Aether Prelaunch Verification
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "app.py"
+      - "tests/**"
+      - "requirements*.txt"
+      - ".github/workflows/prelaunch-verify.yml"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt -r requirements-dev.txt
+      - name: Compile Python
+        run: python -m compileall -q app.py START_AETHER_SERVER.py
+      - name: Run prelaunch tests
+        run: python -m pytest -q tests
