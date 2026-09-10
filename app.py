@@ -206,9 +206,23 @@ def image_generate(prompt, model=None):
     return 'data:'+ctype+';base64,'+base64.b64encode(raw).decode()
 
 
+def fetch_public_page(url):
+    try:
+        req=urllib.request.Request(url,headers={'User-Agent':'AetherResearch/0.5'})
+        with urllib.request.urlopen(req,timeout=15) as r: raw=r.read(500000).decode('utf-8','ignore')
+        text=re.sub(r'<script.*?</script>|<style.*?</style>',' ',raw,flags=re.I|re.S)
+        text=re.sub(r'<[^>]+>',' ',text)
+        text=re.sub(r'\s+',' ',text).strip()
+        return text[:6000]
+    except Exception: return ''
+
+
 def research(query, location=None):
     q = query.strip() + ((' ' + location.strip()) if location and location.strip() else '')
     searches = [('Google web', x) for x in google_cse(q)] + [('Google News', x) for x in google_news_rss(q)]
+    for u in re.findall(r'https?://[^\s]+', query)[:3]:
+        page=fetch_public_page(u)
+        if page: searches.insert(0,('User website',{'title':'Provided website','url':u,'snippet':page}))
     if location: searches += [('Local news', x) for x in google_news_rss(q + ' local news')]
     seen, out = set(), []
     for kind, x in searches:
