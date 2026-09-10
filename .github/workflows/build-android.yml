@@ -7,26 +7,46 @@ on:
       - 'mobile/**'
       - '.github/workflows/build-android.yml'
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
+
       - name: Set up Gradle 8.7
-        uses: gradle/actions/setup-gradle@v6
+        uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.7'
+
       - name: Build debug APK
         working-directory: mobile
         run: gradle assembleDebug --no-daemon
-      - name: Upload APK
+
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: aether-debug-apk
           path: mobile/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+      - name: Publish APK release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: aether-build-${{ github.run_number }}
+          name: Aether Android Build ${{ github.run_number }}
+          body: |
+            Installable Aether Android debug build from commit ${{ github.sha }}.
+            This is a testing build, not a signed production release.
+          prerelease: true
+          make_latest: false
+          files: mobile/app/build/outputs/apk/debug/app-debug.apk
