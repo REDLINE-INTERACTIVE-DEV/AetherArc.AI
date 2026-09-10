@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+.venv/
+.env
+*.db
+mobile/.gradle/
+mobile/build/
+mobile/app/build/
+.idea/
+*.iml
