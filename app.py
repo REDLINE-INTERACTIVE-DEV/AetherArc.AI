@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 ROOT = Path(__file__).resolve().parent
 DB = ROOT / 'storage' / 'aether.db'
-FRONTEND = ROOT / 'frontend'
+FRONTEND = ROOT
 DB.parent.mkdir(exist_ok=True)
 
 app = FastAPI(title='Aether API', version='0.4.0')
