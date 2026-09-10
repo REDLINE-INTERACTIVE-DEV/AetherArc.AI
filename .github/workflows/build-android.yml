@@ -32,21 +32,24 @@ jobs:
         working-directory: mobile
         run: gradle assembleDebug --no-daemon
 
-      - name: Upload APK artifact
+      - name: Rename APK to Aether.apk
+        run: cp mobile/app/build/outputs/apk/debug/app-debug.apk Aether.apk
+
+      - name: Upload Aether APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: aether-debug-apk
-          path: mobile/app/build/outputs/apk/debug/app-debug.apk
+          name: Aether-apk
+          path: Aether.apk
           if-no-files-found: error
 
-      - name: Publish APK release
+      - name: Publish Aether APK release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: aether-build-${{ github.run_number }}
           name: Aether Android Build ${{ github.run_number }}
           body: |
-            Installable Aether Android debug build from commit ${{ github.sha }}.
-            This is a testing build, not a signed production release.
+            Installable Aether Android testing build from commit ${{ github.sha }}.
+            This is a testing/debug build, not a signed production release.
           prerelease: true
           make_latest: false
-          files: mobile/app/build/outputs/apk/debug/app-debug.apk
+          files: Aether.apk
