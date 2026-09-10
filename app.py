@@ -169,17 +169,21 @@ def call_model(messages, temperature=0.2):
         # Pollinations is intentionally the next fallback because Aether already
         # keeps its server-side key there for image generation.
     if os.getenv('POLLINATIONS_API_KEY'):
-        try:
-            purl = 'https://gen.pollinations.ai/v1/chat/completions'
-            pmodel = os.getenv('POLLINATIONS_TEXT_MODEL', 'openai')
-            ppayload = {'model': pmodel, 'messages': messages, 'temperature': temperature}
-            preq = urllib.request.Request(purl, data=json.dumps(ppayload).encode(), headers={'Content-Type':'application/json','Authorization':'Bearer '+os.getenv('POLLINATIONS_API_KEY','')})
-            with urllib.request.urlopen(preq, timeout=90) as r:
-                pdata=json.loads(r.read().decode())
-            return pdata['choices'][0]['message']['content']
-        except Exception as e:
-            pollinations_error = str(e)
-        
+        purl = 'https://gen.pollinations.ai/v1/chat/completions'
+        poll_models = [os.getenv('POLLINATIONS_TEXT_MODEL','openai-fast'), 'openai', 'gpt-oss', 'gemini-fast']
+        pollinations_error = ''
+        for pmodel in poll_models:
+            try:
+                ppayload = {'model': pmodel, 'messages': messages, 'temperature': temperature}
+                preq = urllib.request.Request(purl, data=json.dumps(ppayload).encode(), headers={'Content-Type':'application/json','Authorization':'Bearer '+os.getenv('POLLINATIONS_API_KEY','')})
+                with urllib.request.urlopen(preq, timeout=90) as r:
+                    pdata=json.loads(r.read().decode())
+                content=((pdata.get('choices') or [{}])[0].get('message') or {}).get('content','')
+                if content:
+                    return content
+                pollinations_error='Pollinations returned an empty response for '+pmodel
+            except Exception as e:
+                pollinations_error=str(e)
     if os.getenv('OLLAMA_URL'):
         base = os.getenv('OLLAMA_URL').rstrip('/')
         payload = {'model': ollama_model(), 'messages': messages, 'stream': False, 'options': {'temperature': temperature}}
