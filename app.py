@@ -184,6 +184,17 @@ def call_model(messages, temperature=0.2):
                 pollinations_error='Pollinations returned an empty response for '+pmodel
             except Exception as e:
                 pollinations_error=str(e)
+        # Legacy/simple text endpoint is a useful compatibility fallback when a
+        # provider returns an empty OpenAI-compatible completion.
+        try:
+            prompt='\n\n'.join(str(m.get('role','user')).upper()+': '+str(m.get('content','')) for m in messages)
+            turl='https://gen.pollinations.ai/text/'+urllib.parse.quote(prompt, safe='')+'?'+urllib.parse.urlencode({'model':'openai-fast'})
+            treq=urllib.request.Request(turl, headers={'Authorization':'Bearer '+os.getenv('POLLINATIONS_API_KEY','')})
+            with urllib.request.urlopen(treq, timeout=90) as tr:
+                plain=tr.read().decode('utf-8','ignore').strip()
+            if plain: return plain
+        except Exception as e:
+            pollinations_error=str(e)
     if os.getenv('OLLAMA_URL'):
         base = os.getenv('OLLAMA_URL').rstrip('/')
         payload = {'model': ollama_model(), 'messages': messages, 'stream': False, 'options': {'temperature': temperature}}
