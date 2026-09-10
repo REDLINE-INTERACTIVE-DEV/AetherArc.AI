@@ -11,7 +11,7 @@ DB = ROOT / 'storage' / 'aether.db'
 FRONTEND = ROOT
 DB.parent.mkdir(exist_ok=True)
 
-app = FastAPI(title='Aether API', version='0.4.0')
+app = FastAPI(title='Aether API', version='0.5.0')
 app.add_middleware(CORSMiddleware, allow_origins=['*'], allow_credentials=True, allow_methods=['*'], allow_headers=['*'])
 
 AGENTS = {
@@ -193,7 +193,7 @@ def composio_call(tool_slug, arguments):
 
 
 def github_target(text):
-    m=re.search(r'https?://github\.com/([^/\s]+)/([^/\s#]+)(?:/blob/([^/\s#]+)/([^\s#]+))?', text, re.I)
+    m=re.search(r'https?://github\\.com/([^/\\s]+)/([^/\\s#]+)(?:/blob/([^/\\s#]+)/([^\\s#]+))?', text, re.I)
     if m:
         return m.group(1), m.group(2).removesuffix('.git'), m.group(4) or os.getenv('AETHER_GITHUB_PATH',''), m.group(3) or os.getenv('AETHER_GITHUB_BRANCH','main')
     owner=os.getenv('AETHER_GITHUB_OWNER',''); repo=os.getenv('AETHER_GITHUB_REPO',''); path=os.getenv('AETHER_GITHUB_PATH',''); branch=os.getenv('AETHER_GITHUB_BRANCH','main')
@@ -297,7 +297,7 @@ def manager_team(user_text, location=None):
 
 @app.get('/api/health')
 def health():
-    return {'ok':True,'name':'Aether','version':'0.4.0','model_connected':model_available(),'team':['ManagerAI','ReasonAI','CodeAI','ResearchAI']}
+    return {'ok':True,'name':'Aether','version':'0.5.0','model_connected':model_available(),'team':['ManagerAI','ReasonAI','CodeAI','ResearchAI']}
 
 @app.get('/api/config')
 def config():
