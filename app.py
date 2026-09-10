@@ -114,7 +114,7 @@ def ollama_model():
 
 
 def model_available():
-    return bool((provider_url() and provider_model()) or os.getenv('OLLAMA_URL'))
+    return bool((provider_url() and provider_model()) or os.getenv('POLLINATIONS_API_KEY') or os.getenv('OLLAMA_URL'))
 
 
 def call_model(messages, temperature=0.2):
@@ -168,6 +168,18 @@ def call_model(messages, temperature=0.2):
         if last_error:
             detail = f' Last provider response: {getattr(last_error, "reason", "access denied")}'
             raise RuntimeError('Groq denied every model available to this project. Aether tried automatic model discovery and fallback models.' + detail)
+    if os.getenv('POLLINATIONS_API_KEY'):
+        try:
+            purl = 'https://gen.pollinations.ai/v1/chat/completions'
+            pmodel = os.getenv('POLLINATIONS_TEXT_MODEL', 'openai')
+            ppayload = {'model': pmodel, 'messages': messages, 'temperature': temperature}
+            preq = urllib.request.Request(purl, data=json.dumps(ppayload).encode(), headers={'Content-Type':'application/json','Authorization':'Bearer '+os.getenv('POLLINATIONS_API_KEY','')})
+            with urllib.request.urlopen(preq, timeout=90) as r:
+                pdata=json.loads(r.read().decode())
+            return pdata['choices'][0]['message']['content']
+        except Exception as e:
+            pollinations_error = str(e)
+        
     if os.getenv('OLLAMA_URL'):
         base = os.getenv('OLLAMA_URL').rstrip('/')
         payload = {'model': ollama_model(), 'messages': messages, 'stream': False, 'options': {'temperature': temperature}}
@@ -328,7 +340,7 @@ def health():
 
 @app.get('/api/config')
 def config():
-    return {'agents':AGENTS,'model_connected':model_available(),'model':provider_model() if model_available() else None,'provider':'groq' if os.getenv('GROQ_API_KEY') and not os.getenv('AETHER_MODEL_BASE_URL') else ('openai-compatible' if provider_url() else ('ollama' if os.getenv('OLLAMA_URL') else None)),'research_google_cse':bool(os.getenv('GOOGLE_CSE_API_KEY') and os.getenv('GOOGLE_CSE_ID')),'composio_connected':composio_enabled(),'image_generation':bool(os.getenv('POLLINATIONS_API_KEY'))}
+    return {'agents':AGENTS,'model_connected':model_available(),'model':provider_model() if model_available() else None,'provider':('groq + Pollinations fallback' if os.getenv('GROQ_API_KEY') and os.getenv('POLLINATIONS_API_KEY') and not os.getenv('AETHER_MODEL_BASE_URL') else ('groq' if os.getenv('GROQ_API_KEY') and not os.getenv('AETHER_MODEL_BASE_URL') else ('openai-compatible' if provider_url() else ('Pollinations' if os.getenv('POLLINATIONS_API_KEY') else ('ollama' if os.getenv('OLLAMA_URL') else None))))),'research_google_cse':bool(os.getenv('GOOGLE_CSE_API_KEY') and os.getenv('GOOGLE_CSE_ID')),'composio_connected':composio_enabled(),'image_generation':bool(os.getenv('POLLINATIONS_API_KEY'))}
 
 @app.post('/api/auth/register')
 def register(a: Auth):
