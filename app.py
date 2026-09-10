@@ -1,4 +1,4 @@
-import os, json, time, uuid, sqlite3, hashlib, secrets, urllib.parse, urllib.request, re, asyncio, base64
+import os, json, time, uuid, sqlite3, hashlib, secrets, urllib.parse, urllib.request, urllib.error, re, asyncio, base64
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from fastapi import FastAPI, Request, HTTPException
@@ -94,7 +94,11 @@ def provider_key():
 
 
 def provider_model():
-    return os.getenv('AETHER_MODEL') or os.getenv('GROQ_MODEL', 'llama-3.3-70b-versatile')
+    return os.getenv('AETHER_MODEL') or os.getenv('GROQ_MODEL', 'openai/gpt-oss-20b')
+
+
+def fallback_model():
+    return os.getenv('AETHER_FALLBACK_MODEL', 'openai/gpt-oss-20b')
 
 
 def ollama_model():
@@ -110,10 +114,33 @@ def call_model(messages, temperature=0.2):
         payload = {'model': provider_model(), 'messages': messages, 'temperature': temperature}
         headers = {'Content-Type': 'application/json'}
         if provider_key(): headers['Authorization'] = 'Bearer ' + provider_key()
-        req = urllib.request.Request(provider_url() + '/chat/completions', data=json.dumps(payload).encode(), headers=headers)
-        with urllib.request.urlopen(req, timeout=90) as r:
-            data = json.loads(r.read().decode())
-        return data['choices'][0]['message']['content']
+        models = [provider_model()]
+        if provider_url() == 'https://api.groq.com/openai/v1' and fallback_model() not in models:
+            models.append(fallback_model())
+        last_error = None
+        for model in models:
+            payload['model'] = model
+            req = urllib.request.Request(provider_url() + '/chat/completions', data=json.dumps(payload).encode(), headers=headers)
+            try:
+                with urllib.request.urlopen(req, timeout=90) as r:
+                    data = json.loads(r.read().decode())
+                return data['choices'][0]['message']['content']
+            except urllib.error.HTTPError as e:
+                body = e.read().decode('utf-8', 'ignore')[:1000]
+                last_error = e
+                if e.code == 403 and model != models[-1]:
+                    continue
+                if e.code == 401:
+                    raise RuntimeError('The AI provider rejected the API key (401). Check GROQ_API_KEY in Render.')
+                if e.code == 403:
+                    raise RuntimeError(f'The AI provider denied access to model {model} (403). Aether tried its fallback model too. Check the Groq project/model permissions.')
+                if e.code == 429:
+                    raise RuntimeError('The AI provider is rate-limiting Aether right now (429). Please wait a moment and try again.')
+                raise RuntimeError(f'AI provider request failed ({e.code}).')
+            except urllib.error.URLError as e:
+                raise RuntimeError('Aether could not reach the AI provider. Check the Render service connection.') from e
+        if last_error:
+            raise RuntimeError('The AI provider rejected both configured and fallback models.')
     if os.getenv('OLLAMA_URL'):
         base = os.getenv('OLLAMA_URL').rstrip('/')
         payload = {'model': ollama_model(), 'messages': messages, 'stream': False, 'options': {'temperature': temperature}}
