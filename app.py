@@ -1,4 +1,4 @@
-import os, json, time, uuid, sqlite3, hashlib, secrets, urllib.parse, urllib.request, re, asyncio
+import os, json, time, uuid, sqlite3, hashlib, secrets, urllib.parse, urllib.request, re, asyncio, base64
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from fastapi import FastAPI, Request, HTTPException
@@ -148,6 +148,64 @@ def google_news_rss(q, hl='en-IN', gl='IN', ceid='IN:en'):
     except Exception: return []
 
 
+def composio_enabled():
+    return bool(os.getenv('COMPOSIO_API_KEY') and os.getenv('COMPOSIO_USER_ID'))
+
+
+def composio_call(tool_slug, arguments):
+    key = os.getenv('COMPOSIO_API_KEY', '')
+    if not key: raise RuntimeError('COMPOSIO_API_KEY is not configured.')
+    payload = {'user_id': os.getenv('COMPOSIO_USER_ID'), 'arguments': arguments, 'version': 'latest'}
+    req = urllib.request.Request('https://backend.composio.dev/api/v3.1/tools/execute/' + tool_slug,
+        data=json.dumps(payload).encode(), headers={'Content-Type':'application/json','x-api-key':key})
+    with urllib.request.urlopen(req, timeout=60) as r:
+        data=json.loads(r.read().decode())
+    if not data.get('successful', True) or data.get('error'):
+        raise RuntimeError(data.get('error') or 'Composio tool failed.')
+    return data.get('data', data)
+
+
+def github_target(text):
+    m=re.search(r'https?://github\.com/([^/\s]+)/([^/\s#]+)(?:/blob/([^/\s#]+)/([^\s#]+))?', text, re.I)
+    if m:
+        return m.group(1), m.group(2).removesuffix('.git'), m.group(4) or os.getenv('AETHER_GITHUB_PATH',''), m.group(3) or os.getenv('AETHER_GITHUB_BRANCH','main')
+    owner=os.getenv('AETHER_GITHUB_OWNER',''); repo=os.getenv('AETHER_GITHUB_REPO',''); path=os.getenv('AETHER_GITHUB_PATH',''); branch=os.getenv('AETHER_GITHUB_BRANCH','main')
+    return owner,repo,path,branch
+
+
+def github_fix(user_text):
+    if not composio_enabled():
+        return 'CodeAI can edit GitHub repositories through Composio, but COMPOSIO_API_KEY and COMPOSIO_USER_ID are not configured on this backend.', None
+    owner,repo,path,branch=github_target(user_text)
+    if not owner or not repo or not path:
+        return 'To let CodeAI edit GitHub, include a GitHub file URL such as https://github.com/OWNER/REPO/blob/main/path/to/file, or configure AETHER_GITHUB_OWNER, AETHER_GITHUB_REPO and AETHER_GITHUB_PATH on the backend.', None
+    read=composio_call('GITHUB_GET_REPOSITORY_CONTENT', {'owner':owner,'repo':repo,'path':path,'ref':branch})
+    content_obj=read.get('content',read) if isinstance(read,dict) else {}
+    b64=content_obj.get('content','') if isinstance(content_obj,dict) else ''
+    if not b64: raise RuntimeError('GitHub returned no file content.')
+    old=base64.b64decode(''.join(b64.split())).decode('utf-8','replace')
+    fixed=call_model([
+        {'role':'system','content':SYSTEM_PROMPTS['code']+'\nYou are editing a real repository file. Return ONLY the complete replacement file, with no markdown fences or explanation.'},
+        {'role':'user','content':'USER REQUEST:\n'+user_text+'\n\nFILE PATH: '+path+'\n\nCURRENT FILE:\n'+old}
+    ],0.1)
+    if not fixed: raise RuntimeError('CodeAI returned no replacement content.')
+    fixed=re.sub(r'^```[a-zA-Z0-9_+-]*\n','',fixed.strip())
+    fixed=re.sub(r'\n```$','',fixed.strip())
+    write=composio_call('GITHUB_CREATE_OR_UPDATE_FILE_CONTENTS', {'owner':owner,'repo':repo,'path':path,'branch':branch,'content':fixed,'message':'fix: update file through Aether CodeAI'})
+    return f'CodeAI updated `{owner}/{repo}` → `{path}` on `{branch}` through Composio.', write
+
+
+def image_generate(prompt, model=None):
+    key=os.getenv('POLLINATIONS_API_KEY','')
+    if not key: raise RuntimeError('POLLINATIONS_API_KEY is not configured.')
+    model=model or os.getenv('POLLINATIONS_IMAGE_MODEL','flux')
+    url='https://gen.pollinations.ai/image/'+urllib.parse.quote(prompt, safe='')+'?'+urllib.parse.urlencode({'model':model})
+    req=urllib.request.Request(url, headers={'Authorization':'Bearer '+key})
+    with urllib.request.urlopen(req, timeout=120) as r:
+        raw=r.read(); ctype=r.headers.get_content_type() or 'image/jpeg'
+    return 'data:'+ctype+';base64,'+base64.b64encode(raw).decode()
+
+
 def research(query, location=None):
     q = query.strip() + ((' ' + location.strip()) if location and location.strip() else '')
     searches = [('Google web', x) for x in google_cse(q)] + [('Google News', x) for x in google_news_rss(q)]
@@ -202,7 +260,7 @@ def health():
 
 @app.get('/api/config')
 def config():
-    return {'agents':AGENTS,'model_connected':model_available(),'model':provider_model() if model_available() else None,'provider':'groq' if os.getenv('GROQ_API_KEY') and not os.getenv('AETHER_MODEL_BASE_URL') else ('openai-compatible' if provider_url() else ('ollama' if os.getenv('OLLAMA_URL') else None)),'research_google_cse':bool(os.getenv('GOOGLE_CSE_API_KEY') and os.getenv('GOOGLE_CSE_ID'))}
+    return {'agents':AGENTS,'model_connected':model_available(),'model':provider_model() if model_available() else None,'provider':'groq' if os.getenv('GROQ_API_KEY') and not os.getenv('AETHER_MODEL_BASE_URL') else ('openai-compatible' if provider_url() else ('ollama' if os.getenv('OLLAMA_URL') else None)),'research_google_cse':bool(os.getenv('GOOGLE_CSE_API_KEY') and os.getenv('GOOGLE_CSE_ID')),'composio_connected':composio_enabled(),'image_generation':bool(os.getenv('POLLINATIONS_API_KEY'))}
 
 @app.post('/api/auth/register')
 def register(a: Auth):
@@ -241,6 +299,14 @@ def history_one(cid: str, request: Request):
     msgs=c.execute('SELECT * FROM messages WHERE conversation_id=? ORDER BY id',(cid,)).fetchall(); c.close()
     return {'conversation':dict(row),'messages':[dict(x) for x in msgs]}
 
+@app.post('/api/image')
+def image(ch: Chat):
+    try:
+        data=image_generate(ch.message)
+        return {'ok':True,'prompt':ch.message,'image_data':data}
+    except Exception as e:
+        raise HTTPException(503,str(e))
+
 @app.post('/api/chat')
 def chat(ch: Chat, request: Request):
     if ch.agent not in AGENTS: raise HTTPException(400,'Unknown agent.')
@@ -252,7 +318,15 @@ def chat(ch: Chat, request: Request):
     c.execute('INSERT INTO messages(conversation_id,agent,role,content,created_at) VALUES(?,?,?,?,?)',(cid,ch.agent,'user',ch.message,now)); c.commit(); c.close()
     sources, reports = [], {}
     try:
-        if ch.agent == 'manager':
+        if re.search(r'\b(make|generate|create|draw)\b.*\b(image|picture|art|wallpaper)\b', ch.message, re.I):
+            image_data=image_generate(ch.message)
+            answer='IMAGE_GENERATED'
+            sources=[]
+            reports={'image': image_data}
+        elif ch.agent == 'manager' and re.search(r'\bgithub\b', ch.message, re.I) and re.search(r'\b(fix|edit|change|update|modify)\b', ch.message, re.I):
+            answer, result=github_fix(ch.message)
+            reports={'code': answer}
+        elif ch.agent == 'manager':
             answer, reports, sources = manager_team(ch.message, ch.location)
         elif ch.agent == 'research':
             sources = research(ch.message, ch.location)
@@ -265,7 +339,7 @@ def chat(ch: Chat, request: Request):
     except Exception as e:
         answer=f'{AGENTS[ch.agent]["name"]} encountered an error: {e}'
     c=db(); c.execute('INSERT INTO messages(conversation_id,agent,role,content,created_at) VALUES(?,?,?,?,?)',(cid,ch.agent,'assistant',answer,time.time())); c.execute('UPDATE conversations SET updated_at=? WHERE id=?',(time.time(),cid)); c.commit(); c.close()
-    return {'conversation_id':cid,'agent':AGENTS[ch.agent]['name'],'answer':answer,'sources':sources[:14],'specialists':[AGENTS[a]['name'] for a in reports],'model_connected':model_available()}
+    return {'conversation_id':cid,'agent':AGENTS[ch.agent]['name'],'answer':answer,'sources':sources[:14],'specialists':[AGENTS[a]['name'] for a in reports if a in AGENTS],'image_data': reports.get('image') if isinstance(reports,dict) else None,'model_connected':model_available(),'github_connected':composio_enabled()}
 
 @app.get('/api/stream')
 async def stream(agent: str='manager', message: str=''):
