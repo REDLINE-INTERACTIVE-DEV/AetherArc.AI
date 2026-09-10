@@ -7,6 +7,10 @@ on:
       - "app.py"
       - "tests/**"
       - "requirements*.txt"
+      - "render.yaml"
+      - "app.js"
+      - "index.html"
+      - "style.css"
       - ".github/workflows/prelaunch-verify.yml"
 
 jobs:

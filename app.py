@@ -2,7 +2,7 @@ import os, json, time, uuid, sqlite3, hashlib, secrets, urllib.parse, urllib.req
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -53,6 +53,8 @@ def init_db():
     c.execute('CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY, email TEXT UNIQUE, password_hash TEXT, provider TEXT DEFAULT "local", created_at REAL)')
     c.execute('CREATE TABLE IF NOT EXISTS conversations(id TEXT PRIMARY KEY, user_id INTEGER, title TEXT, created_at REAL, updated_at REAL)')
     c.execute('CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY AUTOINCREMENT, conversation_id TEXT, agent TEXT, role TEXT, content TEXT, created_at REAL)')
+    c.execute('CREATE TABLE IF NOT EXISTS sessions(token_hash TEXT PRIMARY KEY, user_id INTEGER, guest INTEGER DEFAULT 0, expires_at REAL)')
+    c.execute('CREATE TABLE IF NOT EXISTS oauth_states(state TEXT PRIMARY KEY, provider TEXT, created_at REAL)')
     c.commit(); c.close()
 init_db()
 
@@ -72,13 +74,19 @@ def checkpw(password, stored):
 
 def token_for(user_id, guest=False):
     t = secrets.token_urlsafe(32)
-    SESSIONS[t] = {'user_id': user_id, 'guest': guest}
+    record = {'user_id': user_id, 'guest': guest}
+    SESSIONS[t] = record
+    c = db(); c.execute('INSERT OR REPLACE INTO sessions(token_hash,user_id,guest,expires_at) VALUES(?,?,?,?)',(hashlib.sha256(t.encode()).hexdigest(),user_id,1 if guest else 0,time.time()+60*60*24*30)); c.commit(); c.close()
     return t
 
 
 def current_user(request: Request):
     t = request.headers.get('Authorization', '').replace('Bearer ', '').strip()
-    return SESSIONS.get(t)
+    if not t: return None
+    if t in SESSIONS: return SESSIONS[t]
+    c=db(); row=c.execute('SELECT user_id,guest,expires_at FROM sessions WHERE token_hash=?',(hashlib.sha256(t.encode()).hexdigest(),)).fetchone(); c.close()
+    if not row or row['expires_at'] < time.time(): return None
+    record={'user_id':row['user_id'],'guest':bool(row['guest'])}; SESSIONS[t]=record; return record
 
 
 def provider_url():
@@ -193,7 +201,7 @@ def composio_call(tool_slug, arguments):
 
 
 def github_target(text):
-    m=re.search(r'https?://github\\.com/([^/\\s]+)/([^/\\s#]+)(?:/blob/([^/\\s#]+)/([^\\s#]+))?', text, re.I)
+    m=re.search(r'https?://github\.com/([^/\s]+)/([^/\s#]+)(?:/blob/([^/\s#]+)/([^\s#]+))?', text, re.I)
     if m:
         return m.group(1), m.group(2).removesuffix('.git'), m.group(4) or os.getenv('AETHER_GITHUB_PATH',''), m.group(3) or os.getenv('AETHER_GITHUB_BRANCH','main')
     owner=os.getenv('AETHER_GITHUB_OWNER',''); repo=os.getenv('AETHER_GITHUB_REPO',''); path=os.getenv('AETHER_GITHUB_PATH',''); branch=os.getenv('AETHER_GITHUB_BRANCH','main')
@@ -322,7 +330,59 @@ def login(a: Auth):
 def guest(g: Guest): return {'token':token_for(None,True),'saved_history':False}
 
 @app.get('/api/auth/providers')
-def providers(): return {'google':bool(os.getenv('GOOGLE_CLIENT_ID')),'github':bool(os.getenv('GITHUB_CLIENT_ID'))}
+def providers():
+    return {'google':bool(os.getenv('GOOGLE_CLIENT_ID') and os.getenv('GOOGLE_CLIENT_SECRET')), 'github':bool(os.getenv('GITHUB_CLIENT_ID') and os.getenv('GITHUB_CLIENT_SECRET'))}
+
+
+def oauth_redirect_uri(provider):
+    base=os.getenv('AETHER_PUBLIC_URL', '').rstrip('/') or 'https://aetherarc-ai.onrender.com'
+    return f'{base}/api/auth/oauth/{provider}/callback'
+
+
+def oauth_http(url, data=None, headers=None):
+    req=urllib.request.Request(url, data=(urllib.parse.urlencode(data).encode() if data is not None else None), headers=headers or {})
+    with urllib.request.urlopen(req, timeout=30) as r: return json.loads(r.read().decode('utf-8','ignore'))
+
+
+@app.get('/api/auth/oauth/{provider}')
+def oauth_start(provider: str):
+    if provider not in ('google','github'): raise HTTPException(404,'Unknown OAuth provider.')
+    if not providers().get(provider): raise HTTPException(503,f'{provider.title()} sign-in is not configured on this backend.')
+    state=secrets.token_urlsafe(32); c=db(); c.execute('INSERT INTO oauth_states(state,provider,created_at) VALUES(?,?,?)',(state,provider,time.time())); c.commit(); c.close()
+    redirect=oauth_redirect_uri(provider)
+    if provider=='google':
+        q={'client_id':os.getenv('GOOGLE_CLIENT_ID'),'redirect_uri':redirect,'response_type':'code','scope':'openid email profile','state':state,'access_type':'online','prompt':'select_account'}
+        return RedirectResponse('https://accounts.google.com/o/oauth2/v2/auth?'+urllib.parse.urlencode(q))
+    q={'client_id':os.getenv('GITHUB_CLIENT_ID'),'redirect_uri':redirect,'scope':'read:user user:email','state':state}
+    return RedirectResponse('https://github.com/login/oauth/authorize?'+urllib.parse.urlencode(q))
+
+
+@app.get('/api/auth/oauth/{provider}/callback')
+def oauth_callback(provider: str, code: str='', state: str=''):
+    if provider not in ('google','github'): raise HTTPException(404,'Unknown OAuth provider.')
+    c=db(); row=c.execute('SELECT provider,created_at FROM oauth_states WHERE state=?',(state,)).fetchone(); c.execute('DELETE FROM oauth_states WHERE state=?',(state,)); c.commit(); c.close()
+    if not row or row['provider']!=provider or time.time()-row['created_at']>600: raise HTTPException(400,'OAuth state is invalid or expired.')
+    redirect=oauth_redirect_uri(provider)
+    if provider=='google':
+        tok=oauth_http('https://oauth2.googleapis.com/token',{'code':code,'client_id':os.getenv('GOOGLE_CLIENT_ID'),'client_secret':os.getenv('GOOGLE_CLIENT_SECRET'),'redirect_uri':redirect,'grant_type':'authorization_code'},{'Content-Type':'application/x-www-form-urlencoded','Accept':'application/json'})
+        access=tok.get('access_token'); profile=oauth_http('https://openidconnect.googleapis.com/v1/userinfo',headers={'Authorization':'Bearer '+access})
+        email=profile.get('email','').strip().lower(); provider_name='google'
+    else:
+        tok=oauth_http('https://github.com/login/oauth/access_token',{'client_id':os.getenv('GITHUB_CLIENT_ID'),'client_secret':os.getenv('GITHUB_CLIENT_SECRET'),'code':code,'redirect_uri':redirect},{'Accept':'application/json','Content-Type':'application/x-www-form-urlencoded'})
+        access=tok.get('access_token'); profile=oauth_http('https://api.github.com/user',headers={'Authorization':'Bearer '+access,'Accept':'application/vnd.github+json','User-Agent':'AetherArc-AI'})
+        email=(profile.get('email') or '').strip().lower()
+        if not email:
+            emails=oauth_http('https://api.github.com/user/emails',headers={'Authorization':'Bearer '+access,'Accept':'application/vnd.github+json','User-Agent':'AetherArc-AI'})
+            primary=next((x for x in emails if x.get('primary') and x.get('verified')),None) or next((x for x in emails if x.get('verified')),None)
+            email=(primary or {}).get('email','').strip().lower()
+        provider_name='github'
+    if not email: raise HTTPException(400,'OAuth provider did not return a verified email address.')
+    c=db(); existing=c.execute('SELECT id FROM users WHERE email=?',(email,)).fetchone()
+    if existing: uid=existing['id']; c.execute('UPDATE users SET provider=? WHERE id=?',(provider_name,uid))
+    else:
+        cur=c.execute('INSERT INTO users(email,password_hash,provider,created_at) VALUES(?,?,?,?)',(email,'',provider_name,time.time())); uid=cur.lastrowid
+    c.commit(); c.close(); token=token_for(uid,False)
+    return RedirectResponse('/?oauth_token='+urllib.parse.quote(token))
 
 @app.get('/api/history')
 def history(request: Request):

@@ -7,6 +7,7 @@ os.environ.pop("COMPOSIO_API_KEY", None)
 os.environ.pop("COMPOSIO_USER_ID", None)
 from fastapi.testclient import TestClient
 import app
+from starlette.requests import Request
 
 client = TestClient(app.app)
 
@@ -64,3 +65,27 @@ def test_manager_teamwork_contract(monkeypatch):
     r, reports, sources = app.manager_team("fix my website and research the latest ideas")
     assert r == "manager final"
     assert set(reports) == {"reason", "code", "research"}
+
+
+def test_github_url_parser(monkeypatch):
+    monkeypatch.delenv('AETHER_GITHUB_PATH', raising=False)
+    owner, repo, path, branch = app.github_target('edit https://github.com/REDLINE-INTERACTIVE-DEV/AetherArc.AI/blob/main/mobile/app/build.gradle')
+    assert (owner, repo, path, branch) == ('REDLINE-INTERACTIVE-DEV', 'AetherArc.AI', 'mobile/app/build.gradle', 'main')
+
+
+def test_persistent_guest_session(tmp_path, monkeypatch):
+    monkeypatch.setattr(app, 'DB', tmp_path / 'aether.db')
+    app.init_db()
+    token = app.token_for(None, True)
+    req = Request({'type':'http','headers':[(b'authorization',('Bearer '+token).encode())]})
+    assert app.current_user(req)['guest'] is True
+    app.SESSIONS.clear()
+    assert app.current_user(req)['guest'] is True
+
+
+def test_oauth_provider_contract(monkeypatch):
+    monkeypatch.setenv('GOOGLE_CLIENT_ID','id')
+    monkeypatch.setenv('GOOGLE_CLIENT_SECRET','secret')
+    monkeypatch.delenv('GITHUB_CLIENT_ID', raising=False)
+    monkeypatch.delenv('GITHUB_CLIENT_SECRET', raising=False)
+    assert app.providers() == {'google': True, 'github': False}
