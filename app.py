@@ -118,8 +118,9 @@ def model_available():
 
 
 def call_model(messages, temperature=0.2):
+    empty_reason = None
     if provider_url() and provider_model():
-        payload = {'model': provider_model(), 'messages': messages, 'temperature': temperature}
+        payload = {'model': provider_model(), 'messages': messages, 'temperature': temperature, 'max_tokens': 2048}
         headers = {'Content-Type': 'application/json'}
         if provider_key(): headers['Authorization'] = 'Bearer ' + provider_key()
         models = [provider_model()]
@@ -150,7 +151,15 @@ def call_model(messages, temperature=0.2):
             try:
                 with urllib.request.urlopen(req, timeout=90) as r:
                     data = json.loads(r.read().decode())
-                return data['choices'][0]['message']['content']
+                content = ((data.get('choices') or [{}])[0].get('message') or {}).get('content', '')
+                if content:
+                    return content
+                # A 200 OK with no visible content happens with some reasoning
+                # models (e.g. gpt-oss) when the reasoning trace consumes the
+                # token budget. Treat it like a soft failure and try the next
+                # candidate model instead of silently returning blank text.
+                empty_reason = f'{model} returned an empty response.'
+                continue
             except urllib.error.HTTPError as e:
                 body = e.read().decode('utf-8', 'ignore')[:1000]
                 last_error = e
@@ -174,7 +183,7 @@ def call_model(messages, temperature=0.2):
         pollinations_error = ''
         for pmodel in poll_models:
             try:
-                ppayload = {'model': pmodel, 'messages': messages, 'temperature': temperature}
+                ppayload = {'model': pmodel, 'messages': messages, 'temperature': temperature, 'max_tokens': 2048}
                 preq = urllib.request.Request(purl, data=json.dumps(ppayload).encode(), headers={'Content-Type':'application/json','Authorization':'Bearer '+os.getenv('POLLINATIONS_API_KEY','')})
                 with urllib.request.urlopen(preq, timeout=90) as r:
                     pdata=json.loads(r.read().decode())
@@ -184,6 +193,7 @@ def call_model(messages, temperature=0.2):
                 pollinations_error='Pollinations returned an empty response for '+pmodel
             except Exception as e:
                 pollinations_error=str(e)
+        empty_reason = empty_reason or pollinations_error
         # Legacy/simple text endpoint is a useful compatibility fallback when a
         # provider returns an empty OpenAI-compatible completion.
         try:
@@ -195,14 +205,21 @@ def call_model(messages, temperature=0.2):
             if plain: return plain
         except Exception as e:
             pollinations_error=str(e)
+            empty_reason = empty_reason or pollinations_error
     if os.getenv('OLLAMA_URL'):
         base = os.getenv('OLLAMA_URL').rstrip('/')
         payload = {'model': ollama_model(), 'messages': messages, 'stream': False, 'options': {'temperature': temperature}}
         req = urllib.request.Request(base + '/api/chat', data=json.dumps(payload).encode(), headers={'Content-Type': 'application/json'})
         with urllib.request.urlopen(req, timeout=120) as r:
             data = json.loads(r.read().decode())
-        return data.get('message', {}).get('content', '')
-    return ''
+        content = data.get('message', {}).get('content', '')
+        if content:
+            return content
+        empty_reason = empty_reason or 'Ollama returned an empty response.'
+    # Every configured provider returned no usable text. Surface a clear error
+    # instead of silently returning blank content that shows up in chat as
+    # empty "AGENT REPORT:" text with nothing after it.
+    raise RuntimeError(empty_reason or 'No AI provider is configured, or every configured provider returned an empty response.')
 
 
 def google_cse(q, gl='in', num=6):
@@ -345,7 +362,17 @@ def manager_team(user_text, location=None):
             except Exception as e:
                 reports[a] = f'{AGENTS[a]["name"]} failed: {e}'
     bundle = '\n\n'.join(f"{AGENTS[a]['name']} REPORT:\n{r}" for a, r in reports.items())
-    final = call_model([{'role':'system','content':SYSTEM_PROMPTS['manager']},{'role':'user','content':f'USER REQUEST:\n{user_text}\n\nSPECIALIST REPORTS:\n{bundle}\n\nReturn the best final answer for the user. Do not mention internal orchestration unless useful.'}], 0.2)
+    usable_reports = {a: r for a, r in reports.items() if r and not r.startswith(f'{AGENTS[a]["name"]} failed')}
+    try:
+        final = call_model([{'role':'system','content':SYSTEM_PROMPTS['manager']},{'role':'user','content':f'USER REQUEST:\n{user_text}\n\nSPECIALIST REPORTS:\n{bundle}\n\nReturn the best final answer for the user. Do not mention internal orchestration unless useful.'}], 0.2)
+    except Exception as e:
+        # The synthesis call failed or came back empty. If at least one
+        # specialist produced real content, fall back to their reports
+        # instead of surfacing a hard error for a partial success.
+        if usable_reports:
+            final = bundle
+        else:
+            raise RuntimeError(f'ManagerAI and its specialists returned no usable response ({e}). The AI provider may be overloaded or misconfigured — check GROQ_API_KEY and model availability in the Render logs.')
     return final or bundle, reports, sources
 
 
