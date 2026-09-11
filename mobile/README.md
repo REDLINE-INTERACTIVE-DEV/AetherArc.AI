@@ -1,18 +1,19 @@
 # Aether Android client
 
-This folder is a real Android Studio project for the Aether mobile client. It builds an APK that contains the Aether interface and connects to the existing FastAPI backend.
+This is the standalone Aether Android application.
 
-## Build an APK
+## Architecture
 
-1. Open the `mobile/` folder in Android Studio.
-2. Let Gradle sync.
-3. Build > Build APK(s), or run `gradle assembleDebug` from the `mobile/` folder.
-4. The debug APK is created at `mobile/app/build/outputs/apk/debug/app-debug.apk`.
+`Aether APK -> native HTTPS bridge -> Hugging Face Inference Providers`
 
-The project uses Android Gradle Plugin 8.6.1, Gradle 8.7, Java 17 and compile/target SDK 35.
+The APK no longer loads a remote web server. `MainActivity` opens the bundled `assets/index.html` locally, so launching Aether cannot send you to a hosting service.
 
-## Connect the app
+## Setup
 
-On first launch, enter the URL of the machine running Aether's FastAPI backend. Android Emulator can reach a host computer with `http://10.0.2.2:8000`. A physical phone on the same Wi-Fi should use the computer's LAN address, such as `http://192.168.1.10:8000`.
+On first launch, tap the gear icon and enter a Hugging Face User Access Token with Inference Providers permission. The token is stored locally by the app and sent only over HTTPS when Aether makes a model request.
 
-For public deployment, use HTTPS and keep all model/API secrets on the backend. Never put provider API keys in the APK.
+The current model is `Qwen/Qwen2.5-7B-Instruct`.
+
+## Build
+
+Open this `mobile/` folder in Android Studio and build the debug APK, or use the repository's Android GitHub Actions workflow.
