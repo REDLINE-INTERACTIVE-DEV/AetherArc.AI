@@ -8,17 +8,17 @@ Aether is the independent AI team application built by AetherArc, with Redline I
 
 There is **no Render deployment, no always-on server, and no separate backend to wake up**. The APK contains the Aether UI and a tiny native HTTPS bridge. The user enters one Hugging Face User Access Token in Aether's settings; it stays local to the device.
 
-Aether currently uses `Qwen/Qwen2.5-7B-Instruct`. Hugging Face provides an OpenAI-compatible chat endpoint and routes requests through supported inference providers with one token. Free-tier credits/limits can change.
+Aether currently uses `openai/gpt-oss-20b`. Hugging Face's OpenAI-compatible chat endpoint (`https://router.huggingface.co/v1/chat/completions`) automatically picks a serverless inference provider for the model — no provider is hard-coded. Free-tier credits/limits can change.
 
 ## AI team
 
-- **ManagerAI** — default coordinator and front door.
+- **ManagerAI** — team lead. The user is Aether's highest authority; ManagerAI coordinates the team on the user's behalf, and can silently consult a teammate (see below) before answering.
 - **ReasonAI** — reasoning and analysis specialist.
 - **CodeAI** — software engineering specialist.
 - **ResearchAI** — research and evidence specialist.
 - **OfflineAI** — future project.
 
-All four current AIs use the same model connection; their specialist behavior comes from their system instructions.
+All four current AIs use the same model connection; their specialist behavior comes from their system instructions. When you talk to ManagerAI, it first runs a lightweight internal routing call to decide whether ReasonAI, CodeAI, or ResearchAI (up to two) should be consulted for that message; if so, it calls them with a specific sub-task and synthesizes their real answers into its final reply to you, crediting whichever teammate it actually used. Simple messages skip delegation and get a direct answer with no extra calls.
 
 ## First-time setup
 
