@@ -12,7 +12,7 @@ The APK no longer loads a remote web server. `MainActivity` opens the bundled `a
 
 On first launch, tap the gear icon and enter a Hugging Face User Access Token with Inference Providers permission. The token is stored locally by the app and sent only over HTTPS when Aether makes a model request.
 
-The current model is `Qwen/Qwen2.5-7B-Instruct`.
+The current model is `openai/gpt-oss-20b`, served automatically by whichever Hugging Face inference provider currently hosts it (no provider is hard-coded). When talking to ManagerAI, Aether may silently consult ReasonAI/CodeAI/ResearchAI first and fold their real answers into ManagerAI's reply.
 
 ## Build
 
