@@ -28,7 +28,7 @@ for path in ROOT.rglob('*'):
 
 mobile = (ROOT / 'mobile/app/src/main/assets/index.html').read_text(encoding='utf-8')
 assert 'AndroidAether.chat' in mobile
-assert 'Qwen/Qwen2.5-7B-Instruct' in mobile
+assert 'openai/gpt-oss-20b' in mobile
 assert 'aether_hf_token' in mobile
 
 main = (ROOT / 'mobile/app/src/main/java/com/aetherarc/aether/MainActivity.java').read_text(encoding='utf-8')
