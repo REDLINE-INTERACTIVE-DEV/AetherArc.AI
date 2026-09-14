@@ -32,14 +32,18 @@ jobs:
         working-directory: mobile
         run: gradle assembleDebug --no-daemon
 
-      - name: Rename APK to Aether.apk
-        run: cp mobile/app/build/outputs/apk/debug/app-debug.apk Aether.apk
+      - name: Rename APK
+        run: |
+          cp mobile/app/build/outputs/apk/debug/app-debug.apk Aether-Build-${{ github.run_number }}.apk
+          cp Aether-Build-${{ github.run_number }}.apk Aether.apk
 
       - name: Upload Aether APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: Aether-apk
-          path: Aether.apk
+          path: |
+            Aether.apk
+            Aether-Build-${{ github.run_number }}.apk
           if-no-files-found: error
 
       - name: Publish Aether APK release
@@ -49,7 +53,11 @@ jobs:
           name: Aether Android Build ${{ github.run_number }}
           body: |
             Installable Aether Android testing build from commit ${{ github.sha }}.
+            versionCode 20 / versionName 0.6.0
+            Backend-connected UI (no Hugging Face token).
             This is a testing/debug build, not a signed production release.
           prerelease: true
           make_latest: false
-          files: Aether.apk
+          files: |
+            Aether.apk
+            Aether-Build-${{ github.run_number }}.apk
