@@ -17,6 +17,12 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 
+/**
+ * Aether Android shell.
+ * Web UI lives in assets/index.html.
+ * Network calls go to the Aether cloud backend (POST /api/chat),
+ * not to Hugging Face. Users never paste HF tokens.
+ */
 public class MainActivity extends Activity {
     private WebView webView;
 
@@ -37,21 +43,31 @@ public class MainActivity extends Activity {
     }
 
     private final class AetherBridge {
+        /**
+         * Generic HTTP POST used by the Web UI.
+         * requestId  – correlates the JS callback
+         * url        – full backend URL (e.g. https://host/api/chat)
+         * authHeader – optional "Bearer <jwt>" or empty string
+         * body       – JSON string body
+         */
         @JavascriptInterface
-        public void chat(final String requestId, final String token, final String body) {
+        public void postJson(final String requestId, final String url, final String authHeader, final String body) {
             new Thread(() -> {
                 String response;
                 boolean ok = false;
                 int code = 0;
                 try {
-                    URL url = new URL("https://router.huggingface.co/v1/chat/completions");
-                    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                    URL endpoint = new URL(url);
+                    HttpURLConnection conn = (HttpURLConnection) endpoint.openConnection();
                     conn.setRequestMethod("POST");
                     conn.setConnectTimeout(20000);
-                    conn.setReadTimeout(90000);
+                    conn.setReadTimeout(120000);
                     conn.setDoOutput(true);
-                    conn.setRequestProperty("Content-Type", "application/json");
-                    conn.setRequestProperty("Authorization", "Bearer " + token);
+                    conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+                    conn.setRequestProperty("Accept", "application/json");
+                    if (authHeader != null && authHeader.length() > 0) {
+                        conn.setRequestProperty("Authorization", authHeader);
+                    }
                     byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
                     conn.setFixedLengthStreamingMode(bytes.length);
                     try (OutputStream out = conn.getOutputStream()) {
@@ -70,6 +86,13 @@ public class MainActivity extends Activity {
                         "window.__aetherNativeResponse(" + JSONObject.quote(requestId) + "," + JSONObject.quote(result) + ")",
                         null));
             }).start();
+        }
+
+        /** Kept for compatibility with older UI snippets; forwards to postJson. */
+        @JavascriptInterface
+        public void chat(final String requestId, final String ignoredToken, final String body) {
+            // Legacy signature — body is already OpenAI-style; new UI should use postJson.
+            postJson(requestId, "", "", body);
         }
     }
 
