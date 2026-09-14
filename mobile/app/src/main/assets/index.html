@@ -6,35 +6,118 @@
 <title>Aether — AetherArc</title>
 <style>
 :root{--bg:#070a10;--panel:#101622;--line:#263246;--text:#f4f7fb;--muted:#8995a8;--accent:#7c5cff;--ok:#35d07f;--danger:#ff5b6e}
-*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 80% 0,#182044 0,#070a10 45%);color:var(--text);font:15px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;height:100vh;overflow:hidden}.app{height:100vh;display:flex;flex-direction:column}.top{padding:18px 18px 12px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);background:#090c12e8}.brand{display:flex;gap:10px;align-items:center}.logo{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(135deg,#7c5cff,#37d8ff);font-weight:900;font-size:22px}.brand b{display:block;font-size:19px}.brand small{color:var(--muted)}.status{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}.dot{width:8px;height:8px;border-radius:50%;background:var(--danger);display:inline-block}.dot.ok{background:var(--ok)}.toolbar{padding:10px 14px;display:flex;gap:8px;overflow:auto;border-bottom:1px solid var(--line)}button,select,input,textarea{font:inherit}button,select{border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:11px;padding:9px 12px}button{cursor:pointer}button.active{background:var(--accent);border-color:transparent}button.primary{background:var(--accent);border-color:transparent;font-weight:700}.messages{flex:1;overflow:auto;padding:14px}.welcome{padding:22px;border:1px solid var(--line);border-radius:18px;background:linear-gradient(145deg,#111827,#0b101a);margin-bottom:14px}.welcome h2{margin:0 0 6px}.welcome p{color:var(--muted);line-height:1.5}.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:15px}.msg{display:flex;margin:10px 0}.msg.user{justify-content:flex-end}.bubble{max-width:90%;padding:12px 14px;border-radius:16px;line-height:1.5;white-space:pre-wrap}.user .bubble{background:#29344b}.ai .bubble{background:var(--panel);border:1px solid var(--line)}.meta{font-size:11px;color:var(--muted);margin-bottom:4px}.composer{padding:10px 12px calc(10px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:#090c12}.row{display:flex;gap:8px}.composer textarea{flex:1;min-height:48px;max-height:130px;resize:none;border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:14px;padding:12px;outline:none}.send{width:56px}.settings{position:fixed;inset:0;background:#000b;display:none;align-items:flex-end;z-index:5}.settings.show{display:flex}.sheet{width:100%;background:var(--panel);border-top:1px solid var(--line);border-radius:22px 22px 0 0;padding:20px 18px 26px}.sheet h2{margin:0 0 7px}.sheet p{color:var(--muted);line-height:1.5}.sheet input{width:100%;padding:12px;border:1px solid var(--line);background:#0b1018;color:var(--text);border-radius:12px;outline:none}.actions{display:flex;gap:8px;margin-top:12px}.actions button{flex:1}.small{font-size:12px;color:var(--muted);margin-top:9px}.error{color:var(--danger)}.thinking{opacity:.75}.gear{font-size:20px;padding:7px 10px}.footer{text-align:center;color:#596579;font-size:11px;padding:4px}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 80% 0,#182044 0,#070a10 45%);color:var(--text);font:15px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;height:100vh;overflow:hidden}.app{height:100vh;display:flex;flex-direction:column}.top{padding:18px 18px 12px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);background:#090c12e8}.brand{display:flex;gap:10px;align-items:center}.logo{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(135deg,#7c5cff,#37d8ff);font-weight:900;font-size:22px}.brand b{display:block;font-size:19px}.brand small{color:var(--muted)}.status{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}.dot{width:8px;height:8px;border-radius:50%;background:var(--danger);display:inline-block}.dot.ok{background:var(--ok)}.toolbar{padding:10px 14px;display:flex;gap:8px;overflow:auto;border-bottom:1px solid var(--line)}button,select,input,textarea{font:inherit}button,select{border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:11px;padding:9px 12px}button{cursor:pointer}button.active{background:var(--accent);border-color:transparent}button.primary{background:var(--accent);border-color:transparent;font-weight:700}.messages{flex:1;overflow:auto;padding:14px}.welcome{padding:22px;border:1px solid var(--line);border-radius:18px;background:linear-gradient(145deg,#111827,#0b101a);margin-bottom:14px}.welcome h2{margin:0 0 6px}.welcome p{color:var(--muted);line-height:1.5}.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:15px}.msg{display:flex;margin:10px 0}.msg.user{justify-content:flex-end}.bubble{max-width:90%;padding:12px 14px;border-radius:16px;line-height:1.5;white-space:pre-wrap}.user .bubble{background:#29344b}.ai .bubble{background:var(--panel);border:1px solid var(--line)}.meta{font-size:11px;color:var(--muted);margin-bottom:4px}.composer{padding:10px 12px calc(10px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:#090c12}.row{display:flex;gap:8px}.composer textarea{flex:1;min-height:48px;max-height:130px;resize:none;border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:14px;padding:12px;outline:none}.send{width:56px}.settings{position:fixed;inset:0;background:#000b;display:none;align-items:flex-end;z-index:5}.settings.show{display:flex}.sheet{width:100%;background:var(--panel);border-top:1px solid var(--line);border-radius:22px 22px 0 0;padding:20px 18px 26px}.sheet h2{margin:0 0 7px}.sheet p{color:var(--muted);line-height:1.5}.sheet input{width:100%;padding:12px;border:1px solid var(--line);background:#0b1018;color:var(--text);border-radius:12px;outline:none;margin-top:8px}.actions{display:flex;gap:8px;margin-top:12px}.actions button{flex:1}.small{font-size:12px;color:var(--muted);margin-top:9px}.error{color:var(--danger)}.thinking{opacity:.75}.gear{font-size:20px;padding:7px 10px}.footer{text-align:center;color:#596579;font-size:11px;padding:4px}
 </style>
 </head>
 <body>
 <div class="app">
-<header class="top"><div class="brand"><div class="logo">A</div><div><b>Aether</b><small>AetherArc · standalone AI team</small></div></div><div class="status"><span id="dot" class="dot"></span><span id="status">Needs setup</span><button id="settings" class="gear">⚙</button></div></header>
-<div class="toolbar"><button class="agent active" data-agent="manager">ManagerAI</button><button class="agent" data-agent="reason">ReasonAI</button><button class="agent" data-agent="code">CodeAI</button><button class="agent" data-agent="research">ResearchAI</button><span class="tool">One provider · one token</span></div>
-<main id="messages" class="messages"><div class="welcome"><h2>Welcome to Aether.</h2><p>ManagerAI is the front door. Pick any specialist above when you want to talk to that AI directly. Everything runs from this APK — there is no remote server to wake up.</p><div class="chips"><button data-q="Hi Aether!">Say hi</button><button data-q="Break down this idea and tell me the best approach.">Reasoning</button><button data-q="Help me build a Python app.">Coding</button><button data-q="Research the latest technology trends.">Research</button></div></div></main>
-<form id="composer" class="composer"><div class="row"><textarea id="input" placeholder="Message Aether…" rows="1"></textarea><button class="primary send" type="submit">➤</button></div><div class="footer">AetherArc · Redline Interactive Development</div></form>
+<header class="top"><div class="brand"><div class="logo">A</div><div><b>Aether</b><small>AetherArc · AI team</small></div></div><div class="status"><span id="dot" class="dot"></span><span id="status">Needs setup</span><button id="settings" class="gear">⚙</button></div></header>
+<div class="toolbar"><button class="agent active" data-agent="manager">ManagerAI</button><button class="agent" data-agent="research">ResearchAI</button><button class="agent" data-agent="coder">CoderAI</button><button class="agent" data-agent="image">ImageAI</button></div>
+<main id="messages" class="messages"><div class="welcome"><h2>Welcome to Aether.</h2><p>ManagerAI is the front door. Pick any specialist above when you want to talk to that AI directly. Chat goes through your Aether backend — no Hugging Face token required.</p><div class="chips"><button data-q="Hi Aether!">Say hi</button><button data-q="Break down this idea and tell me the best approach.">Reasoning</button><button data-q="Help me build a Python app.">Coding</button><button data-q="Research the latest technology trends.">Research</button></div></div></main>
+<form id="composer" class="composer"><div class="row"><textarea id="input" placeholder="Message Aether…" rows="1"></textarea><button class="primary send" type="submit">➤</button></div><div class="footer">AetherArc · Build 20 · Redline Interactive</div></form>
 </div>
-<div id="settingsModal" class="settings"><div class="sheet"><h2>Connect Aether</h2><p>Aether now uses one Hugging Face token directly from the app. No server URL, Groq key, or Composio key is required for normal chat.</p><input id="token" type="password" autocomplete="off" placeholder="hf_… token"><div class="actions"><button id="cancel">Cancel</button><button id="save" class="primary">Save & start</button></div><div id="setupNote" class="small">Your token stays in this app's local storage. Never paste it into GitHub or a public build.</div></div></div>
+<div id="settingsModal" class="settings"><div class="sheet"><h2>Connect Aether</h2><p>Enter your Aether backend URL. The AI key lives only on the server — you never paste a Hugging Face token.</p><input id="backendUrl" type="url" autocomplete="off" placeholder="https://your-backend.example.com"><input id="jwtToken" type="password" autocomplete="off" placeholder="JWT (optional — for saved history)"><div class="actions"><button id="cancel">Cancel</button><button id="save" class="primary">Save & start</button></div><div id="setupNote" class="small">Example: https://api.example.com — must expose POST /api/chat</div></div></div>
 <script>
-const $=id=>document.getElementById(id);let token=localStorage.getItem('aether_hf_token')||'';let agent='manager';let history=JSON.parse(localStorage.getItem('aether_history')||'[]');let requestNo=0;const MODEL='openai/gpt-oss-20b';
-const LABELS={manager:'ManagerAI',reason:'ReasonAI',code:'CodeAI',research:'ResearchAI'};
-const PROMPTS={manager:'You are ManagerAI, the lead of Aether\u2019s small AI team (ReasonAI, CodeAI, ResearchAI). The user is Aether\u2019s highest authority \u2014 their instructions and priorities always come first, and you coordinate the team on their behalf. If you are given team reports below, synthesize them into one clear final answer for the user and say which teammate\u2019s input you used. If no reports are given, answer directly yourself. Never claim a teammate contributed unless you were actually given their report.',reason:'You are ReasonAI, a member of Aether\u2019s team led by ManagerAI, working on behalf of the user. Break problems into parts, inspect assumptions, compare options, and give a rigorous but understandable answer to the task you were given.',code:'You are CodeAI, a member of Aether\u2019s team led by ManagerAI, working on behalf of the user. Help design, debug, explain, and improve software. Give practical implementation details and correct code when requested. Never claim code was executed unless the user supplied execution evidence.',research:'You are ResearchAI, a member of Aether\u2019s team led by ManagerAI, working on behalf of the user. Give careful, evidence-aware answers. You do not have a live web browser in this standalone build, so clearly distinguish known information from information that should be verified online.'};
-const ROUTER_PROMPT='You are Aether\u2019s internal task router; the user never sees your output directly. Given the user\u2019s message, decide which of ManagerAI\u2019s teammates (reason, code, research) genuinely need to be consulted before ManagerAI answers. Most simple messages need none. Reply with ONLY compact JSON, no other text and no markdown, in exactly this shape: {"needs":[],"tasks":{}} \u2014 needs is an array with at most 2 of "reason"/"code"/"research"; tasks maps each chosen agent name to the specific sub-question to ask them.';
+const $=id=>document.getElementById(id);
+let backendUrl=(localStorage.getItem('aether_backend_url')||'').replace(/\/$/,'');
+let jwt=localStorage.getItem('aether_jwt')||'';
+let agent='manager';
+let conversationId=null;
+let history=JSON.parse(localStorage.getItem('aether_history')||'[]');
+let requestNo=0;
+const LABELS={manager:'ManagerAI',research:'ResearchAI',coder:'CoderAI',image:'ImageAI',reason:'ResearchAI',code:'CoderAI'};
+const FORCE_MAP={manager:null,research:'research',coder:'coder',image:'image',reason:'research',code:'coder'};
+
 function setStatus(text,ok=false){$('status').textContent=text;$('dot').classList.toggle('ok',ok)}
 function escape(s){const d=document.createElement('div');d.textContent=s??'';return d.innerHTML}
 function add(text,who,label){const m=document.createElement('div');m.className='msg '+(who==='user'?'user':'ai');m.innerHTML='<div><div class="meta">'+escape(label||'Aether')+'</div><div class="bubble">'+escape(text)+'</div></div>';$('messages').appendChild(m);$('messages').scrollTop=$('messages').scrollHeight}
-function openSettings(){$('token').value=token;$('settingsModal').classList.add('show');$('token').focus()}
-$('settings').onclick=openSettings;$('cancel').onclick=()=>$('settingsModal').classList.remove('show');$('save').onclick=()=>{const t=$('token').value.trim();if(!t){$('setupNote').textContent='Paste your Hugging Face token first.';$('setupNote').className='small error';return}token=t;localStorage.setItem('aether_hf_token',token);$('settingsModal').classList.remove('show');setStatus('Ready · '+MODEL.split('/').pop(),true)};
-document.querySelectorAll('.agent').forEach(b=>b.onclick=()=>{document.querySelectorAll('.agent').forEach(x=>x.classList.remove('active'));b.classList.add('active');agent=b.dataset.agent});document.querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>{$('input').value=b.dataset.q;$('input').focus()});
-window.__aetherNativeResponse=(id,raw)=>{try{const data=JSON.parse(raw);const pending=window.__pending&&window.__pending[id];if(!pending)return;delete window.__pending[id];if(data.ok){pending.resolve(JSON.parse(data.body))}else{let msg=data.body||('Request failed '+data.code);try{const parsed=JSON.parse(msg);const e=parsed.error;msg=(typeof e==='string'?e:e?.message)||parsed.message||msg}catch(e){}if(data.code===401||data.code===403){msg='Hugging Face rejected the token (' + data.code + '). Open ⚙ and re-enter a valid token with Inference Providers access: ' + msg}pending.reject(new Error(msg))}}catch(e){const p=window.__pending&&window.__pending[id];if(p){delete window.__pending[id];p.reject(e)}}};window.__pending={};
-function nativeChat(body){return new Promise((resolve,reject)=>{const id='r'+(++requestNo);window.__pending[id]={resolve,reject};try{AndroidAether.chat(id,token,JSON.stringify(body))}catch(e){delete window.__pending[id];reject(e)}})}
-async function ask(messages){if(!token)throw new Error('Aether needs one Hugging Face token. Tap ⚙ to connect it.');const data=await nativeChat({model:MODEL,messages,max_tokens:900,temperature:.35});const text=data?.choices?.[0]?.message?.content||'';if(!text)throw new Error('The model returned no usable text. Try again.');return text}
-function parseRouterPlan(raw){try{const match=raw.match(/\{[\s\S]*\}/);if(!match)return{needs:[]};const parsed=JSON.parse(match[0]);const needs=Array.isArray(parsed.needs)?parsed.needs.filter(a=>PROMPTS[a]&&a!=='manager').slice(0,2):[];const tasks=(parsed.tasks&&typeof parsed.tasks==='object')?parsed.tasks:{};return{needs,tasks}}catch(e){return{needs:[]}}}
-async function runManager(text,recent){let plan={needs:[]};try{const raw=await ask([{role:'system',content:ROUTER_PROMPT},{role:'user',content:text}]);plan=parseRouterPlan(raw)}catch(e){}if(!plan.needs.length){return await ask([{role:'system',content:PROMPTS.manager},...recent,{role:'user',content:text}])}const reports=[];for(const a of plan.needs){setStatus('Consulting '+LABELS[a]+'\u2026');const task=plan.tasks[a]||text;try{const out=await ask([{role:'system',content:PROMPTS[a]},{role:'user',content:task}]);reports.push(LABELS[a]+'\u2019s report: '+out)}catch(e){reports.push(LABELS[a]+' could not be reached: '+e.message)}}setStatus('ManagerAI is combining the team\u2019s answers\u2026');const briefing='User asked: '+text+'\n\n'+reports.join('\n\n')+'\n\nGive the user your final answer now, crediting whichever teammate\u2019s report you actually used.';return await ask([{role:'system',content:PROMPTS.manager},...recent,{role:'user',content:briefing}])}
-async function send(){const input=$('input'),text=input.value.trim();if(!text)return;if(!token){openSettings();return}input.value='';add(text,'user','You');const label=LABELS[agent];const thinking=document.createElement('div');thinking.className='msg ai thinking';thinking.innerHTML='<div><div class="meta">'+label+'</div><div class="bubble">Thinking…</div></div>';$('messages').appendChild(thinking);$('messages').scrollTop=$('messages').scrollHeight;setStatus(label+' is thinking…');try{const recent=history.slice(-8).map(x=>({role:x.who==='user'?'user':'assistant',content:x.text}));const answer=agent==='manager'?await runManager(text,recent):await ask([{role:'system',content:PROMPTS[agent]},...recent,{role:'user',content:text}]);thinking.remove();add(answer,'ai',label);history.push({who:'user',text},{who:'ai',text:answer,agent});history=history.slice(-40);localStorage.setItem('aether_history',JSON.stringify(history));setStatus('AI online',true)}catch(e){thinking.remove();add('Aether could not complete that request: '+e.message,'ai','Aether');setStatus('Connection/error')}}
-$('composer').onsubmit=e=>{e.preventDefault();send()};$('input').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}});if(token)setStatus('Ready · '+MODEL.split('/').pop(),true);else setTimeout(openSettings,350);
+function openSettings(){$('backendUrl').value=backendUrl;$('jwtToken').value=jwt;$('settingsModal').classList.add('show');$('backendUrl').focus()}
+$('settings').onclick=openSettings;
+$('cancel').onclick=()=>$('settingsModal').classList.remove('show');
+$('save').onclick=()=>{
+  const u=$('backendUrl').value.trim().replace(/\/$/,'');
+  if(!u){$('setupNote').textContent='Paste your backend URL first.';$('setupNote').className='small error';return}
+  backendUrl=u;jwt=$('jwtToken').value.trim();
+  localStorage.setItem('aether_backend_url',backendUrl);
+  localStorage.setItem('aether_jwt',jwt);
+  $('settingsModal').classList.remove('show');
+  setStatus('Ready · backend',true);
+};
+document.querySelectorAll('.agent').forEach(b=>b.onclick=()=>{document.querySelectorAll('.agent').forEach(x=>x.classList.remove('active'));b.classList.add('active');agent=b.dataset.agent});
+document.querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>{$('input').value=b.dataset.q;$('input').focus()});
+
+window.__aetherNativeResponse=(id,raw)=>{
+  try{
+    const data=JSON.parse(raw);
+    const pending=window.__pending&&window.__pending[id];
+    if(!pending)return;
+    delete window.__pending[id];
+    if(data.ok){pending.resolve(JSON.parse(data.body))}
+    else{
+      let msg=data.body||('Request failed '+data.code);
+      try{const parsed=JSON.parse(msg);const e=parsed.error||parsed.detail;msg=(typeof e==='string'?e:(e&&e.message)||parsed.message||msg)}catch(e){}
+      pending.reject(new Error(msg));
+    }
+  }catch(e){const p=window.__pending&&window.__pending[id];if(p){delete window.__pending[id];p.reject(e)}}
+};
+window.__pending={};
+
+function nativePost(url,authHeader,bodyObj){
+  return new Promise((resolve,reject)=>{
+    const id='r'+(++requestNo);
+    window.__pending[id]={resolve,reject};
+    try{
+      if(typeof AndroidAether==='undefined'||!AndroidAether.postJson){
+        fetch(url,{method:'POST',headers:Object.assign({'Content-Type':'application/json'},authHeader?{Authorization:authHeader}:{}),body:JSON.stringify(bodyObj)})
+          .then(async r=>{const t=await r.text();if(!r.ok)throw new Error(t||r.status);return JSON.parse(t)})
+          .then(resolve).catch(err=>{delete window.__pending[id];reject(err)});
+        return;
+      }
+      AndroidAether.postJson(id,url,authHeader||'',JSON.stringify(bodyObj));
+    }catch(e){delete window.__pending[id];reject(e)}
+  });
+}
+
+async function send(){
+  const input=$('input'),text=input.value.trim();
+  if(!text)return;
+  if(!backendUrl){openSettings();return}
+  input.value='';
+  add(text,'user','You');
+  const label=LABELS[agent]||'ManagerAI';
+  const thinking=document.createElement('div');
+  thinking.className='msg ai thinking';
+  thinking.innerHTML='<div><div class="meta">'+label+'</div><div class="bubble">Thinking…</div></div>';
+  $('messages').appendChild(thinking);
+  $('messages').scrollTop=$('messages').scrollHeight;
+  setStatus(label+' is working…');
+  try{
+    const force=FORCE_MAP[agent];
+    const body={message:text,force_agent:force||null,include_team_activity:false};
+    if(conversationId)body.conversation_id=conversationId;
+    const auth=jwt?('Bearer '+jwt):'';
+    const data=await nativePost(backendUrl+'/api/chat',auth,body);
+    thinking.remove();
+    if(data.conversation_id)conversationId=data.conversation_id;
+    const answer=data.content||'(empty response)';
+    const who=LABELS[data.agent]||label;
+    add(answer,'ai',who);
+    if(data.team_activity&&data.team_activity.length){
+      data.team_activity.forEach(t=>add(t.summary,'ai',(LABELS[t.agent]||t.agent)+' (team)'));
+    }
+    history.push({who:'user',text},{who:'ai',text:answer,agent:data.agent});
+    history=history.slice(-40);
+    localStorage.setItem('aether_history',JSON.stringify(history));
+    setStatus('Online',true);
+  }catch(e){
+    thinking.remove();
+    add('Aether could not complete that request: '+e.message,'ai','Aether');
+    setStatus('Connection/error');
+  }
+}
+$('composer').onsubmit=e=>{e.preventDefault();send()};
+$('input').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}});
+if(backendUrl)setStatus('Ready · backend',true);else setTimeout(openSettings,350);
 </script>
 </body>
 </html>
