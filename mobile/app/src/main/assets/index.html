@@ -12,8 +12,8 @@
 <body>
 <div class="app">
 <header class="top"><div class="brand"><div class="logo">A</div><div><b>Aether</b><small>AetherArc · AI team</small></div></div><div class="status"><span id="dot" class="dot"></span><span id="status">Needs setup</span><button id="settings" class="gear">⚙</button></div></header>
-<div class="toolbar"><button class="agent active" data-agent="manager">ManagerAI</button><button class="agent" data-agent="research">ResearchAI</button><button class="agent" data-agent="coder">CoderAI</button><button class="agent" data-agent="image">ImageAI</button></div>
-<main id="messages" class="messages"><div class="welcome"><h2>Welcome to Aether.</h2><p>ManagerAI is the front door. Pick any specialist above when you want to talk to that AI directly. Chat goes through your Aether backend — no Hugging Face token required.</p><div class="chips"><button data-q="Hi Aether!">Say hi</button><button data-q="Break down this idea and tell me the best approach.">Reasoning</button><button data-q="Help me build a Python app.">Coding</button><button data-q="Research the latest technology trends.">Research</button></div></div></main>
+<div class="toolbar"><button class="agent active" data-agent="aether">Aether</button><button class="agent" data-agent="manager">ManagerAI</button><button class="agent" data-agent="research">ResearchAI</button><button class="agent" data-agent="coder">CoderAI</button><button class="agent" data-agent="image">ImageAI</button></div>
+<main id="messages" class="messages"><div class="welcome"><h2>Welcome to Aether.</h2><p>Aether is the front door. Pick any specialist above when you want to talk to that AI directly. Chat goes through your Aether backend — no Hugging Face token required.</p><div class="chips"><button data-q="Hi Aether!">Say hi</button><button data-q="Break down this idea and tell me the best approach.">Reasoning</button><button data-q="Help me build a Python app.">Coding</button><button data-q="Research the latest technology trends.">Research</button></div></div></main>
 <form id="composer" class="composer"><div class="row"><textarea id="input" placeholder="Message Aether…" rows="1"></textarea><button class="primary send" type="submit">➤</button></div><div class="footer">AetherArc · Build 20 · Redline Interactive</div></form>
 </div>
 <div id="settingsModal" class="settings"><div class="sheet"><h2>Connect Aether</h2><p>Enter your Aether backend URL. The AI key lives only on the server — you never paste a Hugging Face token.</p><input id="backendUrl" type="url" autocomplete="off" placeholder="https://your-backend.example.com"><input id="jwtToken" type="password" autocomplete="off" placeholder="JWT (optional — for saved history)"><div class="actions"><button id="cancel">Cancel</button><button id="save" class="primary">Save & start</button></div><div id="setupNote" class="small">Example: https://api.example.com — must expose POST /api/chat</div></div></div>
@@ -21,12 +21,12 @@
 const $=id=>document.getElementById(id);
 let backendUrl=(localStorage.getItem('aether_backend_url')||'').replace(/\/$/,'');
 let jwt=localStorage.getItem('aether_jwt')||'';
-let agent='manager';
+let agent='aether';
 let conversationId=null;
 let history=JSON.parse(localStorage.getItem('aether_history')||'[]');
 let requestNo=0;
-const LABELS={manager:'ManagerAI',research:'ResearchAI',coder:'CoderAI',image:'ImageAI',reason:'ResearchAI',code:'CoderAI'};
-const FORCE_MAP={manager:null,research:'research',coder:'coder',image:'image',reason:'research',code:'coder'};
+const LABELS={aether:'Aether',manager:'ManagerAI',research:'ResearchAI',coder:'CoderAI',image:'ImageAI',reason:'ResearchAI',code:'CoderAI'};
+const FORCE_MAP={aether:null,manager:'manager',research:'research',coder:'coder',image:'image',reason:'research',code:'coder'};
 
 function setStatus(text,ok=false){$('status').textContent=text;$('dot').classList.toggle('ok',ok)}
 function escape(s){const d=document.createElement('div');d.textContent=s??'';return d.innerHTML}
@@ -84,7 +84,7 @@ async function send(){
   if(!backendUrl){openSettings();return}
   input.value='';
   add(text,'user','You');
-  const label=LABELS[agent]||'ManagerAI';
+  const label=LABELS[agent]||'Aether';
   const thinking=document.createElement('div');
   thinking.className='msg ai thinking';
   thinking.innerHTML='<div><div class="meta">'+label+'</div><div class="bubble">Thinking…</div></div>';

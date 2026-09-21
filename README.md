@@ -1,37 +1,45 @@
-# Aether v0.6 — Standalone AI Team App
+# Aether v0.7 — Aether Core
 
-Aether is the independent AI team application built by AetherArc, with Redline Interactive Development as the parent company.
+Aether is the standalone AI application built by AetherArc, with Redline Interactive Development as the parent company.
 
 ## Architecture
 
-`Android APK -> native network bridge -> Hugging Face Inference Providers -> one AI model`
+Aether now has a central **Aether Brain**. The brain owns the interaction loop:
 
-There is **no Render deployment, no always-on server, and no separate backend to wake up**. The APK contains the Aether UI and a tiny native HTTPS bridge. The user enters one Hugging Face User Access Token in Aether's settings; it stays local to the device.
+`understand -> recall context -> plan -> delegate -> synthesize -> respond`
 
-Aether currently uses `openai/gpt-oss-20b`. Hugging Face's OpenAI-compatible chat endpoint (`https://router.huggingface.co/v1/chat/completions`) automatically picks a serverless inference provider for the model — no provider is hard-coded. Free-tier credits/limits can change.
+The underlying model/provider is replaceable. The model is a reasoning engine used by Aether; it is not Aether's identity.
 
-## AI team
+### Aether Brain responsibilities
 
-- **ManagerAI** — team lead. The user is Aether's highest authority; ManagerAI coordinates the team on the user's behalf, and can silently consult a teammate (see below) before answering.
-- **ReasonAI** — reasoning and analysis specialist.
-- **CodeAI** — software engineering specialist.
-- **ResearchAI** — research and evidence specialist.
-- **OfflineAI** — future project.
+- understand the user's message and recent conversational context
+- detect conversational tone and adapt response style
+- decide whether specialist help is actually needed
+- delegate research, coding, image-concept and project-management work
+- combine specialist results into one response
+- keep private planning separate from the user-facing answer
+- use logged-in conversation history as working memory
 
-All four current AIs use the same model connection; their specialist behavior comes from their system instructions. When you talk to ManagerAI, it first runs a lightweight internal routing call to decide whether ReasonAI, CodeAI, or ResearchAI (up to two) should be consulted for that message; if so, it calls them with a specific sub-task and synthesizes their real answers into its final reply to you, crediting whichever teammate it actually used. Simple messages skip delegation and get a direct answer with no extra calls.
+### Specialist team
 
-## First-time setup
+- **ManagerAI** — project/team-management specialist
+- **ResearchAI** — research and evidence specialist
+- **CoderAI** — software engineering specialist
+- **ImageAI** — image prompts and visual concepts only
+- **OfflineAI** — future project
 
-1. Create a Hugging Face account if you are eligible to use it.
-2. Create a User Access Token with the permission needed for Inference Providers.
-3. Open Aether and tap the gear button.
-4. Paste the token once and tap **Save & start**.
-5. Talk to ManagerAI.
+Aether is now the default front door; specialists remain directly selectable.
 
-Never put the token in GitHub, source files, screenshots, or a public APK. Rotate/revoke it if exposed.
+## Backend
+
+The FastAPI backend keeps the AI provider key server-side. The Android client sends requests to `POST /api/chat`.
+
+Logged-in users get persistent conversation history. Guests can chat without saving history.
+
+## Important distinction
+
+Aether's "brain" is an architectural intelligence layer, not a newly trained foundation model. This keeps Aether model-agnostic while giving it its own identity, working memory, planning, delegation and response behavior.
 
 ## Build
 
-Open `mobile/` in Android Studio and build the debug APK, or use the repository's GitHub Actions Android workflow.
-
-The APK launches `file:///android_asset/index.html` directly. It never opens a hosting dashboard or server URL.
+Open `mobile/` in Android Studio or use the repository's GitHub Actions Android workflow.
