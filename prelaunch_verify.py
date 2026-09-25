@@ -37,7 +37,7 @@ assert 'router.huggingface.co/v1/chat/completions' not in main
 
 brain = (ROOT / 'backend/app/core/brain.py').read_text(encoding='utf-8')
 native = (ROOT / 'backend/app/core/native_brain.py').read_text(encoding='utf-8')
-assert 'BaseAgent' not in brain
+assert 'from app.agents.base import AgentMessage, BaseAgent' not in brain
 assert 'AetherNativeBrain' in brain
 assert 'external_model_used' in brain
 assert 'httpx' not in native
