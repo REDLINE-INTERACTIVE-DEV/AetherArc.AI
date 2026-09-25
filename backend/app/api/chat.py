@@ -33,6 +33,7 @@ class ChatResponse(BaseModel):
     agent: str
     content: str
     team_activity: Optional[List[TeamActivityItem]] = None
+    permission_required: Optional[List[str]] = None
 
 
 @router.post("", response_model=ChatResponse)
@@ -74,12 +75,19 @@ async def chat(
         await db.commit()
 
     result = await brain.handle_user_message(
-        message=body.message, history=history,
+        message=body.message,
+        history=history,
         force_agent=body.force_agent,
         include_team_activity=body.include_team_activity,
+        db=db,
+        user_id=current_user.id if current_user is not None else None,
     )
 
-    if current_user is not None and conversation is not None:
+    # Permission prompts are state-free: after the user changes a permission, the same
+    # request can be sent again and the gateway will re-check it before any tool runs.
+    if current_user is not None and conversation is not None and result.get("type") not in {
+        "permission_required", "permission_denied"
+    }:
         db.add(Message(
             conversation_id=conversation.id, role="assistant",
             agent_name=result.get("agent", "aether"), content=result["content"],
@@ -101,8 +109,11 @@ async def chat(
 
     return ChatResponse(
         conversation_id=conversation.id if conversation else None,
-        type=result["type"], agent=result["agent"], content=result["content"],
+        type=result["type"],
+        agent=result["agent"],
+        content=result["content"],
         team_activity=team_activity,
+        permission_required=result.get("permission_required"),
     )
 
 
