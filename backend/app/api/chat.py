@@ -60,7 +60,7 @@ async def list_conversations(limit: int = Query(default=2, ge=1, le=2), db: Asyn
     if current_user is None:
         return ConversationListResponse(conversations=[])
     result = await db.execute(select(Conversation).where(Conversation.user_id == current_user.id).order_by(Conversation.updated_at.desc()).limit(limit))
-    return ConversationListResponse(conversations=[ConversationPreview(id=c.id, title=c.title, updated_at=c.updated_at) for c in result.scalars().all()])
+    conversations = list(result.scalars().all())\n    previews = []\n    for c in conversations:\n        msg_result = await db.execute(select(Message.content).where(Message.conversation_id == c.id, Message.role == "user").order_by(Message.created_at.desc()).limit(1))\n        preview = msg_result.scalar_one_or_none() or ""\n        previews.append(ConversationPreview(id=c.id, title=c.title, updated_at=c.updated_at, preview=preview[:100]))\n    return ConversationListResponse(conversations=previews)
 
 @router.get("/conversations/{conversation_id}", response_model=ConversationResponse)
 async def get_conversation(conversation_id: int, db: AsyncSession = Depends(get_db), identity=Depends(get_request_identity)):
