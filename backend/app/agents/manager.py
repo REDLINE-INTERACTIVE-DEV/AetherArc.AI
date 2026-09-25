@@ -46,7 +46,7 @@ ImageAI only produces image prompts/concepts and does not generate real images y
 
         raw = await self.generate(
             "Decide whether this project-management request needs research, coding or image help. "
-            "Return only JSON: {"needs":[],"tasks":{}}\n\nUser: " + message,
+            "Return only JSON: {\"needs\":[],\"tasks\":{}}\n\nUser: " + message,
             temperature=0.2, max_tokens=300,
         )
         plan = self._parse_plan(raw.content)
