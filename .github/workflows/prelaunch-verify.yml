@@ -1,5 +1,4 @@
 name: Aether Standalone Verification
-
 on:
   workflow_dispatch:
   push:
@@ -9,15 +8,13 @@ on:
       - 'prelaunch_verify.py'
       - '.github/workflows/prelaunch-verify.yml'
       - '.github/workflows/build-android.yml'
-
 jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
+        with: {python-version: '3.12'}
       - name: Verify standalone architecture
         run: python prelaunch_verify.py
       - name: Install backend dependencies
@@ -32,6 +29,12 @@ jobs:
       - name: Run credential and guest quota tests
         working-directory: backend
         run: python tests/test_access.py
+      - name: Run email password auth tests
+        working-directory: backend
+        run: python tests/test_auth.py
+      - name: Run mobile chat contract tests
+        working-directory: backend
+        run: python tests/test_mobile_chat_contract.py
       - name: Run API surface tests
         working-directory: backend
         run: python tests/test_api_surface.py
