@@ -5,18 +5,21 @@ import json
 import re
 from typing import Any, Dict, List, Optional
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.agents.base import AgentMessage, BaseAgent
 from app.agents.coder import CoderAI
 from app.agents.image import ImageAI
 from app.agents.manager import ManagerAI
 from app.agents.research import ResearchAI
+from app.core.permissions import PermissionGate
 
 
 class AetherBrain(BaseAgent):
-    """Aether's central cognitive and orchestration layer."""
+    """Aether's central cognitive, orchestration and permission layer."""
 
     name = "aether"
-    description = "Aether's central brain: context, planning, delegation, synthesis and natural responses."
+    description = "Aether's central brain: context, planning, delegation, permissions, tools and natural responses."
 
     system_prompt = """You are Aether, a standalone AI assistant built by AetherArc.
 
@@ -34,7 +37,11 @@ Communicate naturally, warmly and responsively:
 - Mention specialist contributions naturally only when useful.
 
 Aether's identity and orchestration are independent of the model provider.
-The model is a reasoning engine used by Aether, not Aether's identity itself."""
+The model is a reasoning engine used by Aether, not Aether's identity itself.
+
+When a request requires a real-world, computer, account, file, messaging, device or
+other external action, Aether must route that action through a registered tool and the
+permission gateway. Never claim an external action happened unless a tool confirms it."""
 
     def __init__(self):
         super().__init__()
@@ -62,6 +69,8 @@ The model is a reasoning engine used by Aether, not Aether's identity itself."""
         history: Optional[List[AgentMessage]] = None,
         force_agent: Optional[str] = None,
         include_team_activity: bool = False,
+        db: Optional[AsyncSession] = None,
+        user_id: Optional[int] = None,
     ) -> Dict[str, Any]:
         if force_agent and force_agent.lower().strip() not in ("aether", "brain", "aetherbrain"):
             key = force_agent.lower().strip()
@@ -74,8 +83,41 @@ The model is a reasoning engine used by Aether, not Aether's identity itself."""
         recent = (history or [])[-12:]
         context = self._build_memory_context(recent)
         plan = await self._make_plan(message, context)
-        needs = plan.get("needs", [])
 
+        required_capabilities = [
+            item for item in (plan.get("capabilities") or [])
+            if isinstance(item, str)
+        ]
+        if required_capabilities:
+            if db is None or user_id is None:
+                return {
+                    "type": "permission_required",
+                    "agent": "aether",
+                    "content": "I can do that, but external actions require you to sign in so Aether can store and enforce your permissions.",
+                    "permission_required": required_capabilities,
+                }
+            gate = PermissionGate(db, user_id)
+            check = await gate.check(required_capabilities)
+            if check["denied"]:
+                labels = ", ".join(check["denied"])
+                return {
+                    "type": "permission_denied",
+                    "agent": "aether",
+                    "content": f"I can't perform that action because these capabilities are denied: {labels}.",
+                    "permission_required": check["denied"],
+                }
+            if check["needs_approval"]:
+                labels = ", ".join(check["needs_approval"])
+                return {
+                    "type": "permission_required",
+                    "agent": "aether",
+                    "content": f"I can perform that action, but I need your permission for: {labels}. You can choose Always allow, Ask every time, or Deny in Aether's permissions.",
+                    "permission_required": check["needs_approval"],
+                }
+            # Tool execution is intentionally separate from planning. Registered tools
+            # should receive only capabilities that passed this gate.
+
+        needs = plan.get("needs", [])
         if not needs:
             response = await self._respond(message, recent, context, plan)
             return {"type": "direct", "agent": "aether", "content": response.content}
@@ -112,11 +154,22 @@ The model is a reasoning engine used by Aether, not Aether's identity itself."""
     async def _make_plan(self, message: str, context: str) -> Dict[str, Any]:
         prompt = f"""You are Aether's private cognitive planner. Do not answer the user.
 Return ONLY JSON:
-{{"needs":[],"tasks":{{}},"tone":"neutral","acknowledge":false,"complexity":"simple"}}
+{{"needs":[],"tasks":{{}},"capabilities":[],"tone":"neutral","acknowledge":false,"complexity":"simple"}}
 
 needs may contain 0-3 of: research, coder, image, manager.
 Use research for current facts/research, coder for programming, image for visual concepts,
 manager for project/team planning. Use multiple only when genuinely useful.
+
+capabilities may contain only these exact strings:
+files.read, files.write, files.delete, apps.run, software.install, web.browse,
+network.access, microphone.use, camera.use, messages.send, accounts.access,
+computer.control, long_tasks.run.
+
+Add capabilities only when the user is actually asking Aether to perform or access that
+kind of external action. Normal conversation, analysis, code generation, research answers
+and planning alone do not need a capability. Never add a capability merely because a
+specialist could theoretically use it.
+
 tone: neutral, casual, excited, frustrated, confused, urgent, or formal.
 acknowledge=true only when a short natural acknowledgment improves the reply.
 complexity: simple, moderate, or complex.
@@ -128,13 +181,19 @@ Current user message:
 {message}
 """
         try:
-            result = await self.generate(prompt, temperature=0.1, max_tokens=350)
+            result = await self.generate(prompt, temperature=0.1, max_tokens=450)
             match = re.search(r"\{[\s\S]*\}", result.content)
             if not match:
-                return {"needs": [], "tasks": {}, "tone": "neutral", "acknowledge": False}
+                return {"needs": [], "tasks": {}, "capabilities": [], "tone": "neutral", "acknowledge": False}
             data = json.loads(match.group(0))
             allowed = {"research", "coder", "image", "manager"}
+            allowed_caps = {
+                "files.read", "files.write", "files.delete", "apps.run", "software.install",
+                "web.browse", "network.access", "microphone.use", "camera.use",
+                "messages.send", "accounts.access", "computer.control", "long_tasks.run",
+            }
             needs = [n for n in (data.get("needs") or []) if n in allowed][:3]
+            capabilities = [c for c in (data.get("capabilities") or []) if c in allowed_caps]
             tasks = data.get("tasks") if isinstance(data.get("tasks"), dict) else {}
             tone = data.get("tone") if data.get("tone") in {
                 "neutral", "casual", "excited", "frustrated", "confused", "urgent", "formal"
@@ -142,12 +201,13 @@ Current user message:
             return {
                 "needs": needs,
                 "tasks": tasks,
+                "capabilities": capabilities,
                 "tone": tone,
                 "acknowledge": bool(data.get("acknowledge")),
                 "complexity": data.get("complexity", "moderate"),
             }
         except Exception:
-            return {"needs": [], "tasks": {}, "tone": "neutral", "acknowledge": False}
+            return {"needs": [], "tasks": {}, "capabilities": [], "tone": "neutral", "acknowledge": False}
 
     async def _respond(self, message: str, history: List[AgentMessage], context: str, plan: Dict[str, Any]):
         prompt = f"""Respond naturally to the user as Aether.
