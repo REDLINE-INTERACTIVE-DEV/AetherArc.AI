@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.db.base import init_db
-from app.api import auth, chat
+from app.api import auth, chat, permissions
 
 
 @asynccontextmanager
@@ -18,16 +18,13 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.APP_NAME,
     description=(
-        "AetherArc — Manager + ResearchAI + CoderAI + ImageAI multi-agent cloud backend. "
-        "Users never paste HF tokens. ImageAI currently produces prompts/concepts only."
+        "AetherArc — Aether Brain + Manager + ResearchAI + CoderAI + ImageAI multi-agent backend "
+        "with a central permission gateway."
     ),
-    version="0.2.1",
+    version="0.3.0",
     lifespan=lifespan,
 )
 
-# CORS:
-# - DEBUG=true  → allow all origins for local development only
-# - DEBUG=false → only the origins listed in CORS_ORIGINS (must be set explicitly for production)
 _origins = list(settings.CORS_ORIGINS)
 if settings.DEBUG:
     _origins = _origins + ["*"]
@@ -42,11 +39,12 @@ app.add_middleware(
 
 app.include_router(auth.router, prefix="/api")
 app.include_router(chat.router, prefix="/api")
+app.include_router(permissions.router, prefix="/api")
 
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "app": settings.APP_NAME, "version": "0.2.1"}
+    return {"status": "ok", "app": settings.APP_NAME, "version": "0.3.0"}
 
 
 @app.get("/")
@@ -55,9 +53,11 @@ async def root():
         "message": "AetherArc Backend is running",
         "docs": "/docs",
         "health": "/health",
-        "agents": ["manager", "research", "coder", "image"],
+        "agents": ["aether", "manager", "research", "coder", "image"],
         "notes": [
-            "Users never need to paste Hugging Face tokens. The key lives only on the server.",
+            "Aether is the central brain; model providers are replaceable.",
+            "External actions pass through the permission gateway before registered tools execute.",
+            "Permissions support allow, ask, and deny per capability.",
             "ImageAI produces prompts/concepts only — it does not generate real images yet.",
             "OAuth: client sends authorization code; backend verifies with Google/GitHub before issuing JWT.",
         ],
