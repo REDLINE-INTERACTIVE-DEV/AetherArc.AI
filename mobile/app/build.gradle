@@ -1,6 +1,8 @@
 plugins { id 'com.android.application' }
 
-def backendUrl = project.findProperty("AETHER_BACKEND_URL") ?: System.getenv("AETHER_BACKEND_URL") ?: ""
+def backendUrl = project.findProperty("AETHER_BACKEND_URL") ?: System.getenv("AETHER_BACKEND_URL") ?: "https://aetherarc-ai.onrender.com"
+backendUrl = backendUrl.toString().trim().replaceAll("/+$", "")
+if (backendUrl.isEmpty()) throw new GradleException("AETHER_BACKEND_URL must be configured")
 
 android {
     namespace 'com.aetherarc.aether'
@@ -9,8 +11,8 @@ android {
         applicationId 'com.aetherarc.aether'
         minSdk 24
         targetSdk 36
-        versionCode 22
-        versionName '0.8.0'
+        versionCode 23
+        versionName '0.9.0'
         buildConfigField "String", "AETHER_BACKEND_URL", '"' + backendUrl.replace('\\', '\\\\').replace('"', '\\"') + '"'
     }
     buildFeatures { buildConfig true }

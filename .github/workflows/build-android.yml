@@ -27,20 +27,16 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.11.1'
-      - name: Build debug APK
+      - name: Build configured Aether APK
         working-directory: mobile
-        run: gradle assembleDebug --no-daemon -PAETHER_BACKEND_URL="$AETHER_BACKEND_URL"
+        run: gradle assembleDebug --no-daemon -PAETHER_BACKEND_URL="${AETHER_BACKEND_URL}"
       - name: Rename APK
-        run: |
-          cp mobile/app/build/outputs/apk/debug/app-debug.apk Aether-Build-${{ github.run_number }}.apk
-          cp Aether-Build-${{ github.run_number }}.apk Aether.apk
+        run: cp mobile/app/build/outputs/apk/debug/app-debug.apk Aether.apk
       - name: Upload Aether APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: Aether-apk
-          path: |
-            Aether.apk
-            Aether-Build-${{ github.run_number }}.apk
+          path: Aether.apk
           if-no-files-found: error
       - name: Publish Aether APK release
         uses: softprops/action-gh-release@v2
@@ -48,12 +44,10 @@ jobs:
           tag_name: aether-build-${{ github.run_number }}
           name: Aether Android Build ${{ github.run_number }}
           body: |
-            Installable Aether Android testing build from commit ${{ github.sha }}.
-            versionCode 22 / versionName 0.8.0
-            Native Aether cognitive brain. Backend URL is injected at build time.
-            This is a testing/debug build, not a signed production release.
+            Single official Aether Android testing build from commit ${{ github.sha }}.
+            versionCode 23 / versionName 0.9.0
+            Native Aether cognitive brain.
+            Backend endpoint is embedded at build time; the APK does not ask the user to enter it.
           prerelease: true
           make_latest: false
-          files: |
-            Aether.apk
-            Aether-Build-${{ github.run_number }}.apk
+          files: Aether.apk
