@@ -1,7 +1,7 @@
 plugins { id 'com.android.application' }
 
 def backendUrl = project.findProperty("AETHER_BACKEND_URL") ?: System.getenv("AETHER_BACKEND_URL") ?: "https://aetherarc-ai.onrender.com"
-backendUrl = backendUrl.toString().trim().replaceAll("/+$", "")
+backendUrl = backendUrl.toString().trim().replaceAll('/+$', '')
 if (backendUrl.isEmpty()) throw new GradleException("AETHER_BACKEND_URL must be configured")
 
 android {
@@ -13,7 +13,7 @@ android {
         targetSdk 36
         versionCode 24
         versionName '0.9.1'
-        buildConfigField "String", "AETHER_BACKEND_URL", '\"' + backendUrl.replace('\\', '\\\\').replace('\"', '\\\"') + '\"'
+        buildConfigField "String", "AETHER_BACKEND_URL", ""${backendUrl}""
     }
     buildFeatures { buildConfig true }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
