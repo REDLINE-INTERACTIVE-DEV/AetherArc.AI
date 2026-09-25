@@ -45,7 +45,7 @@ jobs:
           name: Aether Android Build ${{ github.run_number }}
           body: |
             Single official Aether Android testing build from commit ${{ github.sha }}.
-            versionCode 23 / versionName 0.9.0
+            versionCode 24 / versionName 0.9.1
             Native Aether cognitive brain.
             Backend endpoint is embedded at build time; the APK does not ask the user to enter it.
           prerelease: true
