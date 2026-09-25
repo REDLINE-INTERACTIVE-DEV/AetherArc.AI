@@ -1,15 +1,18 @@
 plugins { id 'com.android.application' }
+
+def backendUrl = project.findProperty("AETHER_BACKEND_URL") ?: System.getenv("AETHER_BACKEND_URL") ?: ""
+
 android {
- namespace 'com.aetherarc.aether'
- compileSdk 36
- defaultConfig {
-  applicationId 'com.aetherarc.aether'
-  minSdk 24
-  targetSdk 36
-  versionCode 21
-  versionName '0.7.0'
-  buildConfigField "String", "AETHER_BACKEND_URL", "\"${AETHER_BACKEND_URL}\""
- }
- buildFeatures { buildConfig true }
- compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+    namespace 'com.aetherarc.aether'
+    compileSdk 36
+    defaultConfig {
+        applicationId 'com.aetherarc.aether'
+        minSdk 24
+        targetSdk 36
+        versionCode 22
+        versionName '0.8.0'
+        buildConfigField "String", "AETHER_BACKEND_URL", '"' + backendUrl.replace('\\', '\\\\').replace('"', '\\"') + '"'
+    }
+    buildFeatures { buildConfig true }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
 }

@@ -1,21 +1,24 @@
 name: Aether Standalone Verification
-
 on:
   workflow_dispatch:
   push:
     paths:
       - 'mobile/**'
+      - 'backend/**'
       - 'prelaunch_verify.py'
       - '.github/workflows/prelaunch-verify.yml'
       - '.github/workflows/build-android.yml'
-
 jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
+        with: {python-version: '3.12'}
       - name: Verify standalone architecture
         run: python prelaunch_verify.py
+      - name: Run native brain tests
+        working-directory: backend
+        run: |
+          python -m pip install -r requirements.txt
+          python tests/test_native_brain.py

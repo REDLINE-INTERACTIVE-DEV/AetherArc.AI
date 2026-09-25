@@ -13,30 +13,27 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      AETHER_BACKEND_URL: ${{ vars.AETHER_BACKEND_URL }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-
       - name: Set up Gradle 8.11.1
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.11.1'
-
       - name: Build debug APK
         working-directory: mobile
-        run: gradle assembleDebug --no-daemon
-
+        run: gradle assembleDebug --no-daemon -PAETHER_BACKEND_URL="$AETHER_BACKEND_URL"
       - name: Rename APK
         run: |
           cp mobile/app/build/outputs/apk/debug/app-debug.apk Aether-Build-${{ github.run_number }}.apk
           cp Aether-Build-${{ github.run_number }}.apk Aether.apk
-
       - name: Upload Aether APK artifact
         uses: actions/upload-artifact@v4
         with:
@@ -45,7 +42,6 @@ jobs:
             Aether.apk
             Aether-Build-${{ github.run_number }}.apk
           if-no-files-found: error
-
       - name: Publish Aether APK release
         uses: softprops/action-gh-release@v2
         with:
@@ -53,8 +49,8 @@ jobs:
           name: Aether Android Build ${{ github.run_number }}
           body: |
             Installable Aether Android testing build from commit ${{ github.sha }}.
-            versionCode 20 / versionName 0.6.0
-            Backend-connected UI (no Hugging Face token).
+            versionCode 22 / versionName 0.8.0
+            Native Aether cognitive brain. Backend URL is injected at build time.
             This is a testing/debug build, not a signed production release.
           prerelease: true
           make_latest: false

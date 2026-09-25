@@ -18,6 +18,7 @@ brain = AetherBrain()
 class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=8000)
     conversation_id: Optional[int] = None
+    session_id: Optional[str] = Field(default=None, min_length=8, max_length=128)
     force_agent: Optional[str] = None
     include_team_activity: bool = False
 
@@ -82,6 +83,9 @@ async def chat(
         history=history,
         force_agent=body.force_agent,
         include_team_activity=body.include_team_activity,
+        user_id=current_user.id if current_user is not None else None,
+        conversation_id=conversation.id if conversation is not None else None,
+        session_id=body.session_id,
     )
 
     if current_user is not None and conversation is not None:
