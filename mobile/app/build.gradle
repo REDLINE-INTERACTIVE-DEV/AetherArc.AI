@@ -1,26 +1,15 @@
 plugins { id 'com.android.application' }
-
 android {
-    namespace 'com.aetherarc.aether'
-    compileSdk 36
-
-    defaultConfig {
-        applicationId 'com.aetherarc.aether'
-        minSdk 24
-        targetSdk 36
-        versionCode 20
-        versionName '0.6.0'
-    }
-
-    buildTypes {
-        release {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-        }
-    }
-
-    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_17
-        targetCompatibility JavaVersion.VERSION_17
-    }
+ namespace 'com.aetherarc.aether'
+ compileSdk 36
+ defaultConfig {
+  applicationId 'com.aetherarc.aether'
+  minSdk 24
+  targetSdk 36
+  versionCode 21
+  versionName '0.7.0'
+  buildConfigField "String", "AETHER_BACKEND_URL", "\"${AETHER_BACKEND_URL}\""
+ }
+ buildFeatures { buildConfig true }
+ compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
 }
