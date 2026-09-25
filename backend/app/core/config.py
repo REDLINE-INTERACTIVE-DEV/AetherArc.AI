@@ -12,10 +12,10 @@ class Settings(BaseSettings):
     AI_MODEL: str = "openai/gpt-oss-20b"
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""
-    GOOGLE_REDIRECT_URI: str = "http://localhost:8000/api/auth/google/callback"
+    GOOGLE_REDIRECT_URI: str = "aether://auth/google"
     GITHUB_CLIENT_ID: str = ""
     GITHUB_CLIENT_SECRET: str = ""
-    GITHUB_REDIRECT_URI: str = "http://localhost:8000/api/auth/github/callback"
+    GITHUB_REDIRECT_URI: str = "aether://auth/github"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7
     CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:5173"]
 
