@@ -6,8 +6,10 @@ import httpx
 
 from app.core.config import settings
 from app.core.security import create_access_token, get_current_user
-from app.db.base import get_db
+from app.core.access import create_guest_session
 from app.models.user import User
+from app.db.base import get_db
+from app.models.access import create_user_api_key
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -16,6 +18,20 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: dict
+    aether_api_key: str
+
+
+class GuestResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    mode: str = "guest"
+    messages_remaining: int
+    max_messages: int
+
+
+class OAuthCodeExchange(BaseModel):
+    provider: str = Field(..., pattern="^(google|github)$")
+    code: str = Field(..., min_length=10, max_length=2048)
 
 
 @router.get("/google/login")
@@ -45,16 +61,7 @@ async def github_login():
     return {"login_url": url}
 
 
-class OAuthCodeExchange(BaseModel):
-    """Client sends the authorization CODE from the provider redirect.
-    Backend independently verifies it with Google/GitHub before issuing a JWT.
-    """
-    provider: str = Field(..., pattern="^(google|github)$")
-    code: str = Field(..., min_length=10, max_length=2048)
-
-
 async def _verify_google(code: str) -> dict:
-    """Exchange Google auth code for tokens and fetch userinfo. Raises on failure."""
     if not settings.GOOGLE_CLIENT_ID or not settings.GOOGLE_CLIENT_SECRET:
         raise HTTPException(500, "Google OAuth is not fully configured on the server.")
 
@@ -84,10 +91,9 @@ async def _verify_google(code: str) -> dict:
             raise HTTPException(401, "Failed to fetch Google user info.")
         info = info_resp.json()
 
-    sub = info.get("sub")
-    email = info.get("email")
+    sub, email = info.get("sub"), info.get("email")
     if not sub or not email:
-        raise HTTPException(401, "Google user info missing sub or email.")
+        raise HTTPException(401, "Google user info is missing sub or email.")
     return {
         "provider": "google",
         "provider_id": str(sub),
@@ -98,7 +104,6 @@ async def _verify_google(code: str) -> dict:
 
 
 async def _verify_github(code: str) -> dict:
-    """Exchange GitHub auth code for token and fetch user + primary email."""
     if not settings.GITHUB_CLIENT_ID or not settings.GITHUB_CLIENT_SECRET:
         raise HTTPException(500, "GitHub OAuth is not fully configured on the server.")
 
@@ -118,7 +123,7 @@ async def _verify_github(code: str) -> dict:
         tokens = token_resp.json()
         access = tokens.get("access_token")
         if not access:
-            raise HTTPException(401, f"GitHub did not return an access token: {tokens}")
+            raise HTTPException(401, "GitHub did not return an access token.")
 
         headers = {
             "Authorization": f"Bearer {access}",
@@ -133,39 +138,28 @@ async def _verify_github(code: str) -> dict:
         if not email:
             emails_resp = await client.get("https://api.github.com/user/emails", headers=headers)
             if emails_resp.status_code < 400:
-                for e in emails_resp.json():
-                    if e.get("primary") and e.get("verified"):
-                        email = e.get("email")
+                for item in emails_resp.json():
+                    if item.get("primary") and item.get("verified"):
+                        email = item.get("email")
                         break
-                if not email and emails_resp.json():
-                    email = emails_resp.json()[0].get("email")
+        if not email:
+            raise HTTPException(401, "GitHub did not return a verified email.")
 
-        provider_id = str(user.get("id") or "")
-        if not provider_id or not email:
-            raise HTTPException(401, "GitHub user info missing id or email.")
-        return {
-            "provider": "github",
-            "provider_id": provider_id,
-            "email": email,
-            "name": user.get("name") or user.get("login"),
-            "avatar_url": user.get("avatar_url"),
-        }
+    provider_id = str(user.get("id") or "")
+    if not provider_id:
+        raise HTTPException(401, "GitHub user info is missing id.")
+    return {
+        "provider": "github",
+        "provider_id": provider_id,
+        "email": email,
+        "name": user.get("name") or user.get("login"),
+        "avatar_url": user.get("avatar_url"),
+    }
 
 
 @router.post("/exchange", response_model=TokenResponse)
 async def exchange_oauth(body: OAuthCodeExchange, db: AsyncSession = Depends(get_db)):
-    """
-    Secure OAuth exchange.
-    Client sends only the authorization `code` from the provider redirect.
-    Backend verifies the code directly with Google or GitHub, then creates/updates
-    the user and issues a JWT. Client-supplied identity data is never trusted.
-    """
-    if body.provider == "google":
-        identity = await _verify_google(body.code)
-    elif body.provider == "github":
-        identity = await _verify_github(body.code)
-    else:
-        raise HTTPException(400, "Unsupported provider.")
+    identity = await (_verify_google(body.code) if body.provider == "google" else _verify_github(body.code))
 
     result = await db.execute(
         select(User).where(
@@ -189,12 +183,11 @@ async def exchange_oauth(body: OAuthCodeExchange, db: AsyncSession = Depends(get
     else:
         user.name = identity.get("name") or user.name
         user.avatar_url = identity.get("avatar_url") or user.avatar_url
-        user.email = identity["email"] or user.email
+        user.email = identity["email"]
         await db.commit()
 
-    token = create_access_token(user.id)
     return TokenResponse(
-        access_token=token,
+        access_token=create_access_token(user.id),
         user={
             "id": user.id,
             "email": user.email,
@@ -202,15 +195,23 @@ async def exchange_oauth(body: OAuthCodeExchange, db: AsyncSession = Depends(get
             "avatar_url": user.avatar_url,
             "provider": user.provider,
         },
+        aether_api_key=create_user_api_key(user.id, settings.SECRET_KEY),
     )
 
 
-@router.get("/me")
-async def me(user: User = Depends(get_current_user)):
+@router.get("/key")
+async def get_my_aether_key(current_user: User = Depends(get_current_user)):
     return {
-        "id": user.id,
-        "email": user.email,
-        "name": user.name,
-        "avatar_url": user.avatar_url,
-        "provider": user.provider,
+        "aether_api_key": create_user_api_key(current_user.id, settings.SECRET_KEY),
+        "user_id": current_user.id,
     }
+
+
+@router.post("/guest", response_model=GuestResponse)
+async def create_guest(db: AsyncSession = Depends(get_db)):
+    token, limit = await create_guest_session(db)
+    return GuestResponse(
+        access_token=token,
+        messages_remaining=limit,
+        max_messages=limit,
+    )

@@ -4,7 +4,8 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from app.core.security import get_current_user, get_optional_user
+from app.core.security import get_current_user, get_request_identity
+from app.core.access import consume_guest_message
 from app.db.base import get_db
 from app.models.user import User
 from app.models.conversation import Conversation, Message
@@ -37,14 +38,23 @@ class ChatResponse(BaseModel):
     permission_required: Optional[List[str]] = None
     brain: Optional[str] = None
     external_model_used: bool = False
+    guest_messages_remaining: Optional[int] = None
 
 
 @router.post("", response_model=ChatResponse)
 async def chat(
     body: ChatRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: Optional[User] = Depends(get_optional_user),
+    identity=Depends(get_request_identity),
 ):
+    current_user, guest_token = identity
+    if current_user is None and guest_token is None:
+        raise HTTPException(401, "Aether needs a logged-in account or a guest session.")
+
+    guest_remaining = None
+    if guest_token is not None:
+        guest_remaining = await consume_guest_message(db, guest_token)
+
     history: List[AgentMessage] = []
     conversation: Optional[Conversation] = None
 
@@ -121,40 +131,5 @@ async def chat(
         permission_required=result.get("permission_required"),
         brain=result.get("brain"),
         external_model_used=bool(result.get("external_model_used", False)),
+        guest_messages_remaining=guest_remaining,
     )
-
-
-@router.get("/conversations")
-async def list_conversations(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    result = await db.execute(select(Conversation).where(
-        Conversation.user_id == current_user.id
-    ).order_by(Conversation.updated_at.desc()))
-    convs = result.scalars().all()
-    return [{
-        "id": c.id, "title": c.title, "agent_type": c.agent_type,
-        "created_at": c.created_at, "updated_at": c.updated_at,
-    } for c in convs]
-
-
-@router.get("/conversations/{conversation_id}/messages")
-async def get_messages(
-    conversation_id: int,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    result = await db.execute(select(Conversation).where(
-        Conversation.id == conversation_id, Conversation.user_id == current_user.id
-    ))
-    if not result.scalar_one_or_none():
-        raise HTTPException(404, "Conversation not found")
-
-    msgs = await db.execute(select(Message).where(
-        Message.conversation_id == conversation_id
-    ).order_by(Message.created_at))
-    return [{
-        "id": m.id, "role": m.role, "agent_name": m.agent_name,
-        "content": m.content, "created_at": m.created_at,
-    } for m in msgs.scalars().all()]
