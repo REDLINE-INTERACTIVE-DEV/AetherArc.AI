@@ -13,7 +13,6 @@ required = [
 missing = [p for p in required if not (ROOT / p).exists()]
 assert not missing, f'Missing required files: {missing}'
 
-# Check source/config files for the old hosting URL/config without scanning this verifier itself.
 for path in ROOT.rglob('*'):
     if path == ROOT / 'prelaunch_verify.py':
         continue
@@ -27,15 +26,21 @@ for path in ROOT.rglob('*'):
     assert 'render.yaml' not in text.lower(), f'Legacy hosting config reference found in {path}'
 
 mobile = (ROOT / 'mobile/app/src/main/assets/index.html').read_text(encoding='utf-8')
-assert 'AndroidAether.chat' in mobile
-assert 'openai/gpt-oss-20b' in mobile
-assert 'aether_hf_token' in mobile
+assert 'POST /api/chat' in mobile
+assert 'Hugging Face' not in mobile
+assert 'aether_hf_token' not in mobile
 
 main = (ROOT / 'mobile/app/src/main/java/com/aetherarc/aether/MainActivity.java').read_text(encoding='utf-8')
 assert 'file:///android_asset/index.html' in main
-assert 'router.huggingface.co/v1/chat/completions' in main
+assert 'Hugging Face' not in main
+assert 'router.huggingface.co/v1/chat/completions' not in main
 
-assert not (ROOT / 'render.yaml').exists()
-assert not (ROOT / 'app.py').exists()
+brain = (ROOT / 'backend/app/core/brain.py').read_text(encoding='utf-8')
+native = (ROOT / 'backend/app/core/native_brain.py').read_text(encoding='utf-8')
+assert 'BaseAgent' not in brain
+assert 'AetherNativeBrain' in brain
+assert 'external_model_used' in brain
+assert 'httpx' not in native
+assert 'AI_API_KEY' not in native
 
 print('STANDALONE_AETHER_VERIFY_OK')

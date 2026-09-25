@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.db.base import init_db
-from app.api import auth, chat, permissions
+from app.api import auth, chat
 
 
 @asynccontextmanager
@@ -17,11 +17,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title=settings.APP_NAME,
-    description=(
-        "AetherArc — Aether Brain + Manager + ResearchAI + CoderAI + ImageAI multi-agent backend "
-        "with a central permission gateway."
-    ),
-    version="0.3.0",
+    description="AetherArc — Aether's native provider-free intelligence backend.",
+    version="0.8.0",
     lifespan=lifespan,
 )
 
@@ -39,12 +36,11 @@ app.add_middleware(
 
 app.include_router(auth.router, prefix="/api")
 app.include_router(chat.router, prefix="/api")
-app.include_router(permissions.router, prefix="/api")
 
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "app": settings.APP_NAME, "version": "0.3.0"}
+    return {"status": "ok", "app": settings.APP_NAME, "version": "0.8.0", "brain": "aether-native"}
 
 
 @app.get("/")
@@ -53,12 +49,14 @@ async def root():
         "message": "AetherArc Backend is running",
         "docs": "/docs",
         "health": "/health",
-        "agents": ["aether", "manager", "research", "coder", "image"],
+        "agents": ["aether"],
+        "brain": "aether-native",
+        "external_model_used": False,
         "notes": [
-            "Aether is the central brain; model providers are replaceable.",
-            "External actions pass through the permission gateway before registered tools execute.",
-            "Permissions support allow, ask, and deny per capability.",
-            "ImageAI produces prompts/concepts only — it does not generate real images yet.",
+            "Aether's production chat path uses its native cognitive core.",
+            "No ChatGPT, Qwen, Claude, Llama, Hugging Face, or other hosted model is called by the Aether front door.",
+            "Specialist agents remain separate code and are not silently used as Aether's brain.",
+            "Persistent conversation history is available to logged-in users.",
             "OAuth: client sends authorization code; backend verifies with Google/GitHub before issuing JWT.",
         ],
     }

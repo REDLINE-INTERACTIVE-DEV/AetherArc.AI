@@ -18,7 +18,7 @@ brain = AetherBrain()
 class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=8000)
     conversation_id: Optional[int] = None
-    force_agent: Optional[str] = None  # aether | manager | research | coder | image
+    force_agent: Optional[str] = None
     include_team_activity: bool = False
 
 
@@ -34,6 +34,8 @@ class ChatResponse(BaseModel):
     content: str
     team_activity: Optional[List[TeamActivityItem]] = None
     permission_required: Optional[List[str]] = None
+    brain: Optional[str] = None
+    external_model_used: bool = False
 
 
 @router.post("", response_model=ChatResponse)
@@ -56,8 +58,9 @@ async def chat(
                 raise HTTPException(404, "Conversation not found")
         else:
             conversation = Conversation(
-                user_id=current_user.id, title=body.message[:80],
-                agent_type=body.force_agent or "aether",
+                user_id=current_user.id,
+                title=body.message[:80],
+                agent_type="aether",
             )
             db.add(conversation)
             await db.commit()
@@ -79,24 +82,22 @@ async def chat(
         history=history,
         force_agent=body.force_agent,
         include_team_activity=body.include_team_activity,
-        db=db,
-        user_id=current_user.id if current_user is not None else None,
     )
 
-    # Permission prompts are state-free: after the user changes a permission, the same
-    # request can be sent again and the gateway will re-check it before any tool runs.
-    if current_user is not None and conversation is not None and result.get("type") not in {
-        "permission_required", "permission_denied"
-    }:
+    if current_user is not None and conversation is not None:
         db.add(Message(
-            conversation_id=conversation.id, role="assistant",
-            agent_name=result.get("agent", "aether"), content=result["content"],
+            conversation_id=conversation.id,
+            role="assistant",
+            agent_name=result.get("agent", "aether"),
+            content=result["content"],
         ))
         if body.include_team_activity and result.get("team_activity"):
             for item in result["team_activity"]:
                 db.add(Message(
-                    conversation_id=conversation.id, role="assistant",
-                    agent_name=item["agent"], content=item["summary"],
+                    conversation_id=conversation.id,
+                    role="assistant",
+                    agent_name=item["agent"],
+                    content=item["summary"],
                 ))
         await db.commit()
 
@@ -114,6 +115,8 @@ async def chat(
         content=result["content"],
         team_activity=team_activity,
         permission_required=result.get("permission_required"),
+        brain=result.get("brain"),
+        external_model_used=bool(result.get("external_model_used", False)),
     )
 
 

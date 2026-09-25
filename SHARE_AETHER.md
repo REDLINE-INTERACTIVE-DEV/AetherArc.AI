@@ -1,11 +1,10 @@
 # Sharing Aether
 
-Aether v0.6 is a standalone Android app.
+Aether v0.8 is a standalone Android app using the Aether backend.
 
 - The APK contains the Aether interface and native network bridge.
-- There is no Render server and no server URL to configure.
-- Each device can keep its own Hugging Face token locally.
-- Do not publish a personal Hugging Face token inside an APK, Git repository, screenshot, or public post.
-- For a public production release, move authentication to a secure server-side design before distributing a shared token.
+- The chat path calls Aether's backend, whose production front door uses the native Aether cognitive core.
+- No ChatGPT, Qwen, Claude, Llama, Hugging Face, or other hosted AI provider token is required.
+- Logged-in users can use JWT-backed conversation history.
 
-The current build is intentionally optimized for a simple private/demo setup: one AI provider token, one APK, no server deployment.
+The current native brain is intentionally small. A genuinely capable neural Aether brain will require training Aether-owned model weights on suitable licensed data and compute.

@@ -1,44 +1,36 @@
-# Aether v0.7 — Aether Core
+# Aether v0.8 — Native Aether Brain
 
 Aether is the standalone AI application built by AetherArc, with Redline Interactive Development as the parent company.
 
 ## Architecture
 
-Aether now has a central **Aether Brain**. The brain owns the interaction loop:
+The production chat path is now:
 
-`understand -> recall context -> plan -> delegate -> synthesize -> respond`
+`User -> Aether Brain -> understand -> recall -> reason -> plan -> respond`
 
-The underlying model/provider is replaceable. The model is a reasoning engine used by Aether; it is not Aether's identity.
+Aether's front door does not call ChatGPT, Qwen, Claude, Llama, Hugging Face, or another hosted AI model.
 
-### Aether Brain responsibilities
+### Native brain
 
-- understand the user's message and recent conversational context
-- detect conversational tone and adapt response style
-- decide whether specialist help is actually needed
-- delegate research, coding, image-concept and project-management work
-- combine specialist results into one response
-- keep private planning separate from the user-facing answer
-- use logged-in conversation history as working memory
+`backend/app/core/native_brain.py` is a provider-free local cognitive kernel. It performs deterministic intent detection, local working-state tracking, safe arithmetic, topic detection and response composition.
+
+This is deliberately a small foundation, not a claim that a few Python rules are equivalent to a trained general-purpose neural network. The next stage is to train an Aether-owned neural model that implements the same brain interface. Until then, Aether does not silently substitute another model.
 
 ### Specialist team
 
-- **ManagerAI** — project/team-management specialist
-- **ResearchAI** — research and evidence specialist
-- **CoderAI** — software engineering specialist
-- **ImageAI** — image prompts and visual concepts only
-- **OfflineAI** — future project
+The previous ManagerAI, ResearchAI, CoderAI and ImageAI integrations remain separate code, but the Aether front door no longer delegates to them. This prevents an external model from becoming Aether's hidden brain.
 
-Aether is now the default front door; specialists remain directly selectable.
+### Memory
+
+Logged-in conversation history is still stored by the backend and supplied to Aether's native cognitive core as working context. Guest conversations remain unsaved.
 
 ## Backend
 
-The FastAPI backend keeps the AI provider key server-side. The Android client sends requests to `POST /api/chat`.
+The FastAPI backend exposes `POST /api/chat` and reports `brain: "aether-native"` with `external_model_used: false`.
 
-Logged-in users get persistent conversation history. Guests can chat without saving history.
+## Important limitation
 
-## Important distinction
-
-Aether's "brain" is an architectural intelligence layer, not a newly trained foundation model. This keeps Aether model-agnostic while giving it its own identity, working memory, planning, delegation and response behavior.
+A truly capable neural Aether brain requires training a neural model on suitable licensed data and compute. This commit establishes the ownership boundary and provider-free production path without pretending that a rule-based kernel is already a ChatGPT-level model.
 
 ## Build
 

@@ -1,13 +1,19 @@
 # AetherArc Backend
 
-Cloud FastAPI backend for the Aether AI team.
+Cloud FastAPI backend for Aether.
+
+## Native brain
+
+The production `POST /api/chat` path uses Aether's provider-free native cognitive core. It does not call a hosted language model.
+
+The backend can still contain legacy specialist modules for future native implementations, but Aether's central brain does not delegate to them.
 
 ## What this solves
-- Users no longer paste Hugging Face tokens
-- Server holds the AI key once
-- ManagerAI can run Research / Coder / Image specialists in parallel and return a final report
-- Google + GitHub login skeleton
-- Chat history saved only when the user is logged in
+
+- No Hugging Face/OpenAI/Claude/Qwen/etc. model call is required for Aether chat.
+- Users do not paste an AI-provider token.
+- Logged-in users can keep conversation history.
+- Google + GitHub login skeleton remains available.
 
 ## Quick start
 ```bash
@@ -16,7 +22,7 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
-# edit .env → put your AI_API_KEY and SECRET_KEY
+# edit .env for DATABASE_URL, SECRET_KEY, and OAuth values as needed
 python run.py
 ```
 

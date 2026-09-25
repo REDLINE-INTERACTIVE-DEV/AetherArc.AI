@@ -11,22 +11,21 @@
 </head>
 <body>
 <div class="app">
-<header class="top"><div class="brand"><div class="logo">A</div><div><b>Aether</b><small>AetherArc · AI team</small></div></div><div class="status"><span id="dot" class="dot"></span><span id="status">Needs setup</span><button id="settings" class="gear">⚙</button></div></header>
-<div class="toolbar"><button class="agent active" data-agent="aether">Aether</button><button class="agent" data-agent="manager">ManagerAI</button><button class="agent" data-agent="research">ResearchAI</button><button class="agent" data-agent="coder">CoderAI</button><button class="agent" data-agent="image">ImageAI</button></div>
-<main id="messages" class="messages"><div class="welcome"><h2>Welcome to Aether.</h2><p>Aether is the front door. Pick any specialist above when you want to talk to that AI directly. Chat goes through your Aether backend — no Hugging Face token required.</p><div class="chips"><button data-q="Hi Aether!">Say hi</button><button data-q="Break down this idea and tell me the best approach.">Reasoning</button><button data-q="Help me build a Python app.">Coding</button><button data-q="Research the latest technology trends.">Research</button></div></div></main>
-<form id="composer" class="composer"><div class="row"><textarea id="input" placeholder="Message Aether…" rows="1"></textarea><button class="primary send" type="submit">➤</button></div><div class="footer">AetherArc · Build 20 · Redline Interactive</div></form>
+<header class="top"><div class="brand"><div class="logo">A</div><div><b>Aether</b><small>AetherArc · Native Brain</small></div></div><div class="status"><span id="dot" class="dot"></span><span id="status">Needs setup</span><button id="settings" class="gear">⚙</button></div></header>
+<div class="toolbar"><button class="agent active" data-agent="aether">Aether</button></div>
+<main id="messages" class="messages"><div class="welcome"><h2>Welcome to Aether.</h2><p>Aether is the front door. This chat is handled by Aether's native cognitive core rather than a third-party AI model.</p><div class="chips"><button data-q="Hi Aether!">Say hi</button><button data-q="2 + 2">Calculate</button><button data-q="Who are you?">Identity</button><button data-q="What do you remember?">Memory</button></div></div></main>
+<form id="composer" class="composer"><div class="row"><textarea id="input" placeholder="Message Aether…" rows="1"></textarea><button class="primary send" type="submit">➤</button></div><div class="footer">AetherArc · Native Brain · Redline Interactive</div></form>
 </div>
-<div id="settingsModal" class="settings"><div class="sheet"><h2>Connect Aether</h2><p>Enter your Aether backend URL. The AI key lives only on the server — you never paste a Hugging Face token.</p><input id="backendUrl" type="url" autocomplete="off" placeholder="https://your-backend.example.com"><input id="jwtToken" type="password" autocomplete="off" placeholder="JWT (optional — for saved history)"><div class="actions"><button id="cancel">Cancel</button><button id="save" class="primary">Save & start</button></div><div id="setupNote" class="small">Example: https://api.example.com — must expose POST /api/chat</div></div></div>
+<div id="settingsModal" class="settings"><div class="sheet"><h2>Connect Aether</h2><p>Enter your Aether backend URL. No AI-provider token is required.</p><input id="backendUrl" type="url" autocomplete="off" placeholder="https://your-backend.example.com"><input id="jwtToken" type="password" autocomplete="off" placeholder="JWT (optional — for saved history)"><div class="actions"><button id="cancel">Cancel</button><button id="save" class="primary">Save & start</button></div><div id="setupNote" class="small">Example: https://api.example.com — must expose POST /api/chat</div></div></div>
 <script>
 const $=id=>document.getElementById(id);
 let backendUrl=(localStorage.getItem('aether_backend_url')||'').replace(/\/$/,'');
 let jwt=localStorage.getItem('aether_jwt')||'';
-let agent='aether';
 let conversationId=null;
 let history=JSON.parse(localStorage.getItem('aether_history')||'[]');
 let requestNo=0;
-const LABELS={aether:'Aether',manager:'ManagerAI',research:'ResearchAI',coder:'CoderAI',image:'ImageAI',reason:'ResearchAI',code:'CoderAI'};
-const FORCE_MAP={aether:null,manager:'manager',research:'research',coder:'coder',image:'image',reason:'research',code:'coder'};
+const LABELS={aether:'Aether'};
+const FORCE_MAP={aether:null};
 
 function setStatus(text,ok=false){$('status').textContent=text;$('dot').classList.toggle('ok',ok)}
 function escape(s){const d=document.createElement('div');d.textContent=s??'';return d.innerHTML}
@@ -43,7 +42,6 @@ $('save').onclick=()=>{
   $('settingsModal').classList.remove('show');
   setStatus('Ready · backend',true);
 };
-document.querySelectorAll('.agent').forEach(b=>b.onclick=()=>{document.querySelectorAll('.agent').forEach(x=>x.classList.remove('active'));b.classList.add('active');agent=b.dataset.agent});
 document.querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>{$('input').value=b.dataset.q;$('input').focus()});
 
 window.__aetherNativeResponse=(id,raw)=>{
@@ -84,31 +82,22 @@ async function send(){
   if(!backendUrl){openSettings();return}
   input.value='';
   add(text,'user','You');
-  const label=LABELS[agent]||'Aether';
   const thinking=document.createElement('div');
   thinking.className='msg ai thinking';
-  thinking.innerHTML='<div><div class="meta">'+label+'</div><div class="bubble">Thinking…</div></div>';
+  thinking.innerHTML='<div><div class="meta">Aether</div><div class="bubble">Thinking…</div></div>';
   $('messages').appendChild(thinking);
   $('messages').scrollTop=$('messages').scrollHeight;
-  setStatus(label+' is working…');
+  setStatus('Aether is working…');
   try{
-    const force=FORCE_MAP[agent];
-    const body={message:text,force_agent:force||null,include_team_activity:false};
-    if(conversationId)body.conversation_id=conversationId;
-    const auth=jwt?('Bearer '+jwt):'';
-    const data=await nativePost(backendUrl+'/api/chat',auth,body);
+    const data=await nativePost(backendUrl+'/api/chat',jwt?('Bearer '+jwt):'',{message:text,force_agent:null,include_team_activity:false,conversation_id:conversationId||undefined});
     thinking.remove();
     if(data.conversation_id)conversationId=data.conversation_id;
     const answer=data.content||'(empty response)';
-    const who=LABELS[data.agent]||label;
-    add(answer,'ai',who);
-    if(data.team_activity&&data.team_activity.length){
-      data.team_activity.forEach(t=>add(t.summary,'ai',(LABELS[t.agent]||t.agent)+' (team)'));
-    }
+    add(answer,'ai','Aether');
     history.push({who:'user',text},{who:'ai',text:answer,agent:data.agent});
     history=history.slice(-40);
     localStorage.setItem('aether_history',JSON.stringify(history));
-    setStatus('Online',true);
+    setStatus('Online · native brain',true);
   }catch(e){
     thinking.remove();
     add('Aether could not complete that request: '+e.message,'ai','Aether');
